@@ -33,9 +33,6 @@
 # ./colorlight_5a_75x.py --load
 # You should see the LiteX BIOS and be able to interact with it.
 #
-# Note that you can also use a 5A-75E board:
-# ./colorlight_5a_75x.py --board=5a-75e --revision=7.1
-#
 # Disclaimer: SoC 2) is still a Proof of Concept with large timings violations on the IP/UDP and
 # Etherbone stack that need to be optimized. It was initially just used to validate the reversed
 # pinout but happens to work on hardware...
@@ -49,7 +46,7 @@ from migen.genlib.resetsync import AsyncResetSynchronizer
 
 from litex.build.io import DDROutput
 
-from litex_boards.platforms import colorlight_5a_75b, colorlight_5a_75e
+from litex_boards.platforms import colorlight_5a_75b
 
 from litex.build.lattice.trellis import trellis_args, trellis_argdict
 
@@ -67,12 +64,7 @@ from liteeth.phy.ecp5rgmii import LiteEthPHYRGMII
 
 class _CRG(Module):
     def __init__(
-        self,
-        platform,
-        sys_clk_freq,
-        with_usb_pll=False,
-        with_rst=True,
-        sdram_rate="1:1",
+        self, platform, sys_clk_freq, with_rst=True, sdram_rate="1:1",
     ):
         self.clock_domains.cd_sys = ClockDomain()
         if sdram_rate == "1:2":
@@ -103,15 +95,6 @@ class _CRG(Module):
             )  # Idealy 90° but needs to be increased.
         self.specials += AsyncResetSynchronizer(self.cd_sys, ~pll.locked | ~rst_n)
 
-        # USB PLL
-        if with_usb_pll:
-            self.submodules.usb_pll = usb_pll = ECP5PLL()
-            usb_pll.register_clkin(clk25, 25e6)
-            self.clock_domains.cd_usb_12 = ClockDomain()
-            self.clock_domains.cd_usb_48 = ClockDomain()
-            usb_pll.create_clkout(self.cd_usb_12, 12e6, margin=0)
-            usb_pll.create_clkout(self.cd_usb_48, 48e6, margin=0)
-
         # SDRAM clock
         sdram_clk = ClockSignal("sys2x_ps" if sdram_rate == "1:2" else "sys_ps")
         self.specials += DDROutput(1, 0, platform.request("sdram_clock"), sdram_clk)
@@ -123,7 +106,6 @@ class _CRG(Module):
 class BaseSoC(SoCCore):
     def __init__(
         self,
-        board,
         revision,
         with_ethernet=False,
         with_etherbone=False,
@@ -131,19 +113,14 @@ class BaseSoC(SoCCore):
         sdram_rate="1:1",
         **kwargs
     ):
-        board = board.lower()
-        assert board in ["5a-75b", "5a-75e"]
-        if board == "5a-75b":
-            platform = colorlight_5a_75b.Platform(revision=revision)
-        elif board == "5a-75e":
-            platform = colorlight_5a_75e.Platform(revision=revision)
+        platform = colorlight_5a_75b.Platform(revision=revision)
 
         # SoCCore ----------------------------------------------------------------------------------
         SoCCore.__init__(
             self,
             platform,
             sys_clk_freq,
-            ident="LiteX SoC on Colorlight " + board.upper(),
+            ident="LiteX SoC on Colorlight 5A-75B",
             ident_version=True,
             **kwargs
         )
@@ -153,13 +130,8 @@ class BaseSoC(SoCCore):
             "serial",
             "bridge",
         ]  # serial_rx shared with user_btn_n.
-        with_usb_pll = kwargs.get("uart_name", None) == "usb_acm"
         self.submodules.crg = _CRG(
-            platform,
-            sys_clk_freq,
-            with_usb_pll=with_usb_pll,
-            with_rst=with_rst,
-            sdram_rate=sdram_rate,
+            platform, sys_clk_freq, with_rst=with_rst, sdram_rate=sdram_rate,
         )
 
         # SDR SDRAM --------------------------------------------------------------------------------
@@ -200,8 +172,6 @@ def main():
     trellis_args(parser)
     parser.add_argument("--build", action="store_true", help="Build bitstream")
     parser.add_argument("--load", action="store_true", help="Load bitstream")
-    parser.add_argument(
-        "--board", default="5a-75b", help="Board type: 5a-75b (default) or 5a-75e"
     )
     parser.add_argument(
         "--revision",
@@ -230,7 +200,6 @@ def main():
 
     assert not (args.with_ethernet and args.with_etherbone)
     soc = BaseSoC(
-        board=args.board,
         revision=args.revision,
         with_ethernet=args.with_ethernet,
         with_etherbone=args.with_etherbone,

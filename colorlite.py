@@ -63,6 +63,8 @@ from litex.build.generic_platform import Subsignal, Pins, Misc, IOStandard
 
 from output_test import GPIOStatic
 
+import helper
+
 
 # CRG ----------------------------------------------------------------------------------------------
 
@@ -124,11 +126,12 @@ class BaseSoC(SoCCore):
         ]  # serial_rx shared with user_btn_n.
         self.submodules.crg = _CRG(platform, sys_clk_freq, with_rst=with_rst)
 
-        _test = [
-            ("test", 0, Pins("B3"), IOStandard("LVCMOS33"),),
-        ]
-        platform.add_extension(_test)
-        self.submodules.test0 = GPIOStatic(1, sys_clk_freq, platform.request("test"),)
+        # Add hub75 connectors
+        platform.add_extension(helper.hub75_conn(platform))
+
+        self.submodules.test0 = GPIOStatic(
+            1, sys_clk_freq, platform.request("hub75_data", 0),
+        )
 
         # SDR SDRAM --------------------------------------------------------------------------------
         # if not self.integrated_main_ram_size:

@@ -6,7 +6,8 @@ import math
 
 
 class GPIOStatic(Module):
-    def __init__(self, blink_freq, sys_clk_freq, led):
+    def __init__(self, blink_freq, sys_clk_freq, outputs):
+        led = outputs.r0
         counter = Signal(32)
         # synchronous assignments
         self.sync += [

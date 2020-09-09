@@ -130,7 +130,10 @@ class BaseSoC(SoCCore):
         platform.add_extension(helper.hub75_conn(platform))
 
         self.submodules.test0 = GPIOStatic(
-            1, sys_clk_freq, platform.request("hub75_data", 0),
+            1e5,
+            sys_clk_freq,
+            platform.request("hub75_data", 1),
+            platform.request("hub75_common"),
         )
 
         # SDR SDRAM --------------------------------------------------------------------------------
@@ -187,7 +190,7 @@ def main():
         "--eth-phy", default=0, type=int, help="Ethernet PHY 0 or 1 (default=0)"
     )
     parser.add_argument(
-        "--sys-clk-freq", default=60e6, help="System clock frequency (default=60MHz)"
+        "--sys-clk-freq", default=25e6, help="System clock frequency (default=60MHz)"
     )
     args = parser.parse_args()
 

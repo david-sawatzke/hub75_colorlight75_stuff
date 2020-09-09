@@ -9,6 +9,7 @@
 - chubby75 reverse eng. project
 - https://github.com/enjoy-digital/litex/wiki/LiteX-for-Hardware-Engineers
 - Getting started https://github.com/litex-hub/fpga_101/
+- Migen manual https://m-labs.hk/migen/manual/fhdl.html
 * Stuff to keep in mind
 - Eth performance increases
   - Seperate clock https://github.com/litex-hub/wishbone-utils/issues/24

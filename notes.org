@@ -1,0 +1,15 @@
+#+TITLE: Notes
+
+* History
+- Started with the example file in `litex-boards`
+- Added uart probe based on https://github.com/TomKeddie/prj-litex/blob/master/colorlight-5a-75b/uart-probe/colorlight-uart-probe.py
+* Resources used
+- nixpkgs
+- litex (with yosys, openocd, iverilog, migen, etc.)
+- chubby75 reverse eng. project
+- https://github.com/enjoy-digital/litex/wiki/LiteX-for-Hardware-Engineers
+- Getting started https://github.com/litex-hub/fpga_101/
+* Stuff to keep in mind
+- Eth performance increases
+  - Seperate clock https://github.com/litex-hub/wishbone-utils/issues/24
+  - Wider bus https://github.com/enjoy-digital/liteeth/pull/21

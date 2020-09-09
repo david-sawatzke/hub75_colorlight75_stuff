@@ -9,3 +9,10 @@ $ chmod +x litex_setup.py
 $ sudo ./litex_setup.py init install
 ```
 
+
+## To build
+
+``` sh
+$ ./colorlite.py --revision 6.1 --build
+$ ./colorlite.py --revision 6.1 --load
+```

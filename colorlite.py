@@ -10,7 +10,7 @@
 #
 # 1) SoC with regular UART and optional Ethernet connected to the CPU:
 # Connect a USB/UART to J19: TX of the FPGA is DATA_LED-, RX of the FPGA is KEY+.
-# ./colorlight_5a_75x.py --revision=7.0 (or 6.1) (--with-ethernet to add Ethernet capability)
+# ./colorlight_5a_75x.py --revision=7.0 (or 6.1) --build (--with-ethernet to add Ethernet capability)
 # Note: on revision 6.1, add --uart-baudrate=9600 to lower the baudrate.
 # ./colorlight_5a_75x.py --load
 # You should see the LiteX BIOS and be able to interact with it.
@@ -59,19 +59,18 @@ from litedram.phy import GENSDRPHY, HalfRateGENSDRPHY
 
 from liteeth.phy.ecp5rgmii import LiteEthPHYRGMII
 
+from litex.build.generic_platform import Subsignal, Pins, Misc, IOStandard
+
+from output_test import GPIOStatic
+
+
 # CRG ----------------------------------------------------------------------------------------------
 
 
 class _CRG(Module):
-    def __init__(
-        self, platform, sys_clk_freq, with_rst=True, sdram_rate="1:1",
-    ):
+    def __init__(self, platform, sys_clk_freq, with_rst=True):
         self.clock_domains.cd_sys = ClockDomain()
-        if sdram_rate == "1:2":
-            self.clock_domains.cd_sys2x = ClockDomain()
-            self.clock_domains.cd_sys2x_ps = ClockDomain(reset_less=True)
-        else:
-            self.clock_domains.cd_sys_ps = ClockDomain(reset_less=True)
+        self.clock_domains.cd_sys_ps = ClockDomain(reset_less=True)
 
         # # #
 
@@ -84,19 +83,13 @@ class _CRG(Module):
 
         pll.register_clkin(clk25, 25e6)
         pll.create_clkout(self.cd_sys, sys_clk_freq)
-        if sdram_rate == "1:2":
-            pll.create_clkout(self.cd_sys2x, 2 * sys_clk_freq)
-            pll.create_clkout(
-                self.cd_sys2x_ps, 2 * sys_clk_freq, phase=180
-            )  # Idealy 90° but needs to be increased.
-        else:
-            pll.create_clkout(
-                self.cd_sys_ps, sys_clk_freq, phase=180
-            )  # Idealy 90° but needs to be increased.
+        pll.create_clkout(
+            self.cd_sys_ps, sys_clk_freq, phase=180
+        )  # Idealy 90° but needs to be increased.
         self.specials += AsyncResetSynchronizer(self.cd_sys, ~pll.locked | ~rst_n)
 
         # SDRAM clock
-        sdram_clk = ClockSignal("sys2x_ps" if sdram_rate == "1:2" else "sys_ps")
+        sdram_clk = ClockSignal("sys_ps")
         self.specials += DDROutput(1, 0, platform.request("sdram_clock"), sdram_clk)
 
 
@@ -110,7 +103,6 @@ class BaseSoC(SoCCore):
         with_ethernet=False,
         with_etherbone=False,
         sys_clk_freq=60e6,
-        sdram_rate="1:1",
         **kwargs
     ):
         platform = colorlight_5a_75b.Platform(revision=revision)
@@ -130,36 +122,40 @@ class BaseSoC(SoCCore):
             "serial",
             "bridge",
         ]  # serial_rx shared with user_btn_n.
-        self.submodules.crg = _CRG(
-            platform, sys_clk_freq, with_rst=with_rst, sdram_rate=sdram_rate,
-        )
+        self.submodules.crg = _CRG(platform, sys_clk_freq, with_rst=with_rst)
+
+        _test = [
+            ("test", 0, Pins("B3"), IOStandard("LVCMOS33"),),
+        ]
+        platform.add_extension(_test)
+        self.submodules.test0 = GPIOStatic(1, sys_clk_freq, platform.request("test"),)
 
         # SDR SDRAM --------------------------------------------------------------------------------
-        if not self.integrated_main_ram_size:
-            sdrphy_cls = HalfRateGENSDRPHY if sdram_rate == "1:2" else GENSDRPHY
-            self.submodules.sdrphy = sdrphy_cls(platform.request("sdram"))
-            self.add_sdram(
-                "sdram",
-                phy=self.sdrphy,
-                module=M12L16161A(sys_clk_freq, sdram_rate),
-                origin=self.mem_map["main_ram"],
-                size=kwargs.get("max_sdram_size", 0x40000000),
-                l2_cache_size=kwargs.get("l2_size", 8192),
-                l2_cache_min_data_width=kwargs.get("min_l2_data_width", 128),
-                l2_cache_reverse=True,
-            )
+        # if not self.integrated_main_ram_size:
+        #     sdrphy_cls = GENSDRPHY
+        #     self.submodules.sdrphy = sdrphy_cls(platform.request("sdram"))
+        #     self.add_sdram(
+        #         "sdram",
+        #         phy=self.sdrphy,
+        #         module=M12L16161A(sys_clk_freq, "1:1"),
+        #         origin=self.mem_map["main_ram"],
+        #         size=kwargs.get("max_sdram_size", 0x40000000),
+        #         l2_cache_size=kwargs.get("l2_size", 8192),
+        #         l2_cache_min_data_width=kwargs.get("min_l2_data_width", 128),
+        #         l2_cache_reverse=True,
+        #     )
 
         # Ethernet / Etherbone ---------------------------------------------------------------------
-        if with_ethernet or with_etherbone:
-            self.submodules.ethphy = LiteEthPHYRGMII(
-                clock_pads=self.platform.request("eth_clocks"),
-                pads=self.platform.request("eth"),
-            )
-            self.add_csr("ethphy")
-            if with_ethernet:
-                self.add_ethernet(phy=self.ethphy)
-            if with_etherbone:
-                self.add_etherbone(phy=self.ethphy)
+        # if with_ethernet or with_etherbone:
+        #     self.submodules.ethphy = LiteEthPHYRGMII(
+        #         clock_pads=self.platform.request("eth_clocks"),
+        #         pads=self.platform.request("eth"),
+        #     )
+        #     self.add_csr("ethphy")
+        #     if with_ethernet:
+        #         self.add_ethernet(phy=self.ethphy)
+        #     if with_etherbone:
+        #         self.add_etherbone(phy=self.ethphy)
 
 
 # Build --------------------------------------------------------------------------------------------
@@ -172,7 +168,6 @@ def main():
     trellis_args(parser)
     parser.add_argument("--build", action="store_true", help="Build bitstream")
     parser.add_argument("--load", action="store_true", help="Load bitstream")
-    )
     parser.add_argument(
         "--revision",
         default="7.0",
@@ -191,11 +186,6 @@ def main():
     parser.add_argument(
         "--sys-clk-freq", default=60e6, help="System clock frequency (default=60MHz)"
     )
-    parser.add_argument(
-        "--sdram-rate",
-        default="1:1",
-        help="SDRAM Rate 1:1 Full Rate (default), 1:2 Half Rate",
-    )
     args = parser.parse_args()
 
     assert not (args.with_ethernet and args.with_etherbone)
@@ -204,7 +194,6 @@ def main():
         with_ethernet=args.with_ethernet,
         with_etherbone=args.with_etherbone,
         sys_clk_freq=args.sys_clk_freq,
-        sdram_rate=args.sdram_rate,
         **soc_core_argdict(args)
     )
     builder = Builder(soc, **builder_argdict(args))
@@ -212,6 +201,7 @@ def main():
 
     if args.load:
         prog = soc.platform.create_programmer()
+        print(os.path.join(builder.gateware_dir, soc.build_name + ".svf"))
         prog.load_bitstream(os.path.join(builder.gateware_dir, soc.build_name + ".svf"))
 
 

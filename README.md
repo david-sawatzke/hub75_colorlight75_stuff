@@ -16,3 +16,6 @@ $ sudo ./litex_setup.py init install
 $ ./colorlite.py --revision 6.1 --build
 $ ./colorlite.py --revision 6.1 --load
 ```
+
+## Pitfalls I ran into
+1. `and` is silently dropped, maybe use `&` instead

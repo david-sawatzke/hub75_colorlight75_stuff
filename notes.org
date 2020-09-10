@@ -14,3 +14,5 @@
 - Eth performance increases
   - Seperate clock https://github.com/litex-hub/wishbone-utils/issues/24
   - Wider bus https://github.com/enjoy-digital/liteeth/pull/21
+* Ideas
+- Split r0 & r1 up, just like every other panel, since there's nothing special about them

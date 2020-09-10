@@ -7,21 +7,37 @@ class GPIOStatic(Module):
         counter = Signal(max=int((sys_clk_freq / out_freq) / 2 - 1))
         collumn_counter = Signal(32)
         row_counter = Signal(4)
-        fsm = FSM(reset_state="SHIFTING")
+        fsm = FSM(reset_state="SHIFTING_DOWN")
         self.submodules.fsm = fsm
         fsm.act(
-            "SHIFTING",
+            "SHIFTING_UP",
             outputs_common.oe.eq(0),
             outputs_common.lat.eq(1),
+            outputs_common.clk.eq(1),
             If(
                 counter == 0,
-                NextValue(outputs_common.clk, ~outputs_common.clk),
+                NextState("SHIFTING_DOWN"),
+                # Set new data here, as it's sampled from L->H
+                If(
+                    collumn_counter < 32,
+                    NextValue(outputs_specific.r0, ~outputs_specific.r0),
+                ).Else(NextValue(outputs_specific.r0, 0)),
+            ),
+        )
+
+        fsm.act(
+            "SHIFTING_DOWN",
+            outputs_common.oe.eq(0),
+            outputs_common.lat.eq(1),
+            outputs_common.clk.eq(0),
+            If(
+                counter == 0,
                 NextValue(collumn_counter, collumn_counter + 1),
                 If(
-                    collumn_counter == 128,
+                    collumn_counter == 64,
                     NextValue(collumn_counter, 0),
                     NextState("DISABLE_OUTPUT"),
-                ),
+                ).Else(NextState("SHIFTING_UP")),
             ),
         )
 
@@ -45,8 +61,7 @@ class GPIOStatic(Module):
             If(
                 counter == 0,
                 NextValue(outputs_common.row, outputs_common.row + 1),
-                NextValue(outputs_specific.r0, ~outputs_specific.r0),
-                NextState("SHIFTING"),
+                NextState("SHIFTING_UP"),
             ),
         )
 

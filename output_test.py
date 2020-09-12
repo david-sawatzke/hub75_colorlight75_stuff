@@ -14,15 +14,14 @@ class GPIOStatic(Module):
         self.submodules.fsm = fsm
         fsm.act(
             "SHIFTING_UP",
-            outputs_common.oe.eq(0),
-            outputs_common.lat.eq(1),
+            outputs_common.lat.eq(0),
             outputs_common.clk.eq(1),
             If(
                 counter == 0,
                 If(
                     collumn_counter == collumns - 1,
                     NextValue(collumn_counter, 0),
-                    NextState("DISABLE_OUTPUT"),
+                    NextState("LATCH"),
                 ).Else(
                     NextValue(collumn_counter, collumn_counter + 1),
                     NextState("SHIFTING_SET_STATE"),
@@ -32,39 +31,22 @@ class GPIOStatic(Module):
         # Set new data here, as it's sampled from L->H
         fsm.act(
             "SHIFTING_SET_STATE",
-            outputs_common.oe.eq(0),
-            outputs_common.lat.eq(1),
+            outputs_common.lat.eq(0),
             outputs_common.clk.eq(0),
             If(
                 (row_shifting & ((1 << (collumn_counter[:2])))),
-                NextValue(outputs_specific.r0, 1),
-            ).Else(NextValue(outputs_specific.r0, 0)),
+                NextValue(outputs_specific.g0, 1),
+            ).Else(NextValue(outputs_specific.g0, 0)),
             NextState("SHIFTING_DOWN"),
         )
         fsm.act(
             "SHIFTING_DOWN",
-            outputs_common.oe.eq(0),
-            outputs_common.lat.eq(1),
+            outputs_common.lat.eq(0),
             outputs_common.clk.eq(0),
             If(counter == 0, NextState("SHIFTING_UP"),),
         )
-
         fsm.act(
-            "DISABLE_OUTPUT",
-            outputs_common.oe.eq(1),
-            outputs_common.lat.eq(1),
-            If(counter == 0, NextState("BEGIN_LATCH")),
-        )
-
-        fsm.act(
-            "BEGIN_LATCH",
-            outputs_common.oe.eq(1),
-            outputs_common.lat.eq(0),
-            If(counter == 0, NextState("END_LATCH")),
-        )
-        fsm.act(
-            "END_LATCH",
-            outputs_common.oe.eq(1),
+            "LATCH",
             outputs_common.lat.eq(1),
             If(
                 counter == 0,
@@ -72,7 +54,6 @@ class GPIOStatic(Module):
                 NextState("SHIFTING_SET_STATE"),
             ),
         )
-
         # synchronous assignments
         self.sync += [
             counter.eq(counter + 1),
@@ -82,11 +63,14 @@ class GPIOStatic(Module):
         # combinatorial assignements
         self.comb += [
             # Static outputs
-            outputs_specific.g0.eq(0),
+            outputs_specific.r0.eq(0),
             outputs_specific.b0.eq(0),
             outputs_specific.r1.eq(0),
             outputs_specific.g1.eq(0),
             outputs_specific.b1.eq(0),
+            outputs_common.oe.eq(
+                (collumn_counter < 8) | (collumn_counter > (collumns - 8))
+            ),
             outputs_common.row.eq(row_active),
             row_shifting.eq(row_active + 1),
         ]

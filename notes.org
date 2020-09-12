@@ -16,3 +16,7 @@
   - Wider bus https://github.com/enjoy-digital/liteeth/pull/21
 * Ideas
 - Split r0 & r1 up, just like every other panel, since there's nothing special about them
+* DATASHEETS
+- ICN2028 http://www.xlix.ru/datasheet/ICN2053.pdf
+* Protocol description
+- https://bikerglen.com/projects/lighting/led-panel-1up/

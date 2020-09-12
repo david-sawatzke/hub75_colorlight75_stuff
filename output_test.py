@@ -8,7 +8,8 @@ class GPIOStatic(Module):
     ):
         counter = Signal(max=int((sys_clk_freq / out_freq) / 2))
         collumn_counter = Signal(max=collumns)
-        row_counter = Signal(4)
+        row_active = Signal(4)
+        row_shifting = Signal(4)
         fsm = FSM(reset_state="SHIFTING_DOWN")
         self.submodules.fsm = fsm
         fsm.act(
@@ -27,7 +28,7 @@ class GPIOStatic(Module):
             If(
                 (collumn_counter > 1),
                 If(
-                    (row_counter & ((1 << collumn_counter - 2))),
+                    (row_shifting & ((1 << collumn_counter - 2))),
                     NextValue(outputs_specific.r0, 1),
                 ).Else(NextValue(outputs_specific.r0, 0)),
             ).Else(NextValue(outputs_specific.r0, 0)),
@@ -65,7 +66,7 @@ class GPIOStatic(Module):
             outputs_common.lat.eq(1),
             If(
                 counter == 0,
-                NextValue(row_counter, row_counter + 1),
+                NextValue(row_active, row_active + 1),
                 NextState("SHIFTING_SET_STATE"),
             ),
         )
@@ -84,7 +85,8 @@ class GPIOStatic(Module):
             outputs_specific.r1.eq(0),
             outputs_specific.g1.eq(0),
             outputs_specific.b1.eq(0),
-            outputs_common.row.eq(row_counter),
+            outputs_common.row.eq(row_active),
+            row_shifting.eq(row_active + 1),
         ]
 
 

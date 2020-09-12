@@ -10,14 +10,24 @@ class GPIOStatic(Module):
         collumn_counter = Signal(max=collumns)
         row_active = Signal(4)
         row_shifting = Signal(4)
-        fsm = FSM(reset_state="SHIFTING_DOWN")
+        fsm = FSM(reset_state="SHIFTING_SET_STATE")
         self.submodules.fsm = fsm
         fsm.act(
             "SHIFTING_UP",
             outputs_common.oe.eq(0),
             outputs_common.lat.eq(1),
             outputs_common.clk.eq(1),
-            If(counter == 0, NextState("SHIFTING_SET_STATE"),),
+            If(
+                counter == 0,
+                If(
+                    collumn_counter == collumns - 1,
+                    NextValue(collumn_counter, 0),
+                    NextState("DISABLE_OUTPUT"),
+                ).Else(
+                    NextValue(collumn_counter, collumn_counter + 1),
+                    NextState("SHIFTING_SET_STATE"),
+                ),
+            ),
         )
         # Set new data here, as it's sampled from L->H
         fsm.act(
@@ -26,18 +36,10 @@ class GPIOStatic(Module):
             outputs_common.lat.eq(1),
             outputs_common.clk.eq(0),
             If(
-                (collumn_counter > 1),
-                If(
-                    (row_shifting & ((1 << collumn_counter - 2))),
-                    NextValue(outputs_specific.r0, 1),
-                ).Else(NextValue(outputs_specific.r0, 0)),
+                (row_shifting & ((1 << (collumn_counter[:2])))),
+                NextValue(outputs_specific.r0, 1),
             ).Else(NextValue(outputs_specific.r0, 0)),
-            NextValue(collumn_counter, collumn_counter + 1),
-            If(
-                collumn_counter == collumns - 1,
-                NextValue(collumn_counter, 0),
-                NextState("DISABLE_OUTPUT"),
-            ).Else(NextState("SHIFTING_DOWN")),
+            NextState("SHIFTING_DOWN"),
         )
         fsm.act(
             "SHIFTING_DOWN",
@@ -104,18 +106,19 @@ class _TestPads(Module):
         self.row = Signal(5)
 
 
-def _test_row(pads, dut, row):
-    for i in range((8 * 2 + 4) * 2):
+def _test_row(pads, dut, row, cols):
+    for i in range((cols * 2 + 4) * 2):
         yield
 
 
-def _test(pads, dut):
+def _test(pads, dut, cols):
     for i in range(16):
-        yield from _test_row(pads, dut, i)
+        yield from _test_row(pads, dut, i, cols)
 
 
 if __name__ == "__main__":
     pads = _TestPads()
-    dut = GPIOStatic(1, 4, pads, pads, 8)
+    collumns = 64
+    dut = GPIOStatic(1, 4, pads, pads, collumns)
     dut.clock_domains.cd_sys = ClockDomain("sys")
-    run_simulation(dut, _test(pads, dut), vcd_name="output_text.vcd")
+    run_simulation(dut, _test(pads, dut, collumns), vcd_name="output_test.vcd")

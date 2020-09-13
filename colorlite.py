@@ -137,6 +137,9 @@ class BaseSoC(SoCCore):
         self.submodules.hub75_specific1 = hub75.Specific(
             hub75_common, platform.request("hub75_data", 1),
         )
+        self.submodules.hub75_specific0 = hub75.Specific(
+            hub75_common, platform.request("hub75_data", 0),
+        )
 
         # SDR SDRAM --------------------------------------------------------------------------------
         # if not self.integrated_main_ram_size:

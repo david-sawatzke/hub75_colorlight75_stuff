@@ -61,7 +61,7 @@ from liteeth.phy.ecp5rgmii import LiteEthPHYRGMII
 
 from litex.build.generic_platform import Subsignal, Pins, Misc, IOStandard
 
-from hub75 import Hub75
+import hub75
 
 import helper
 
@@ -129,11 +129,13 @@ class BaseSoC(SoCCore):
         # Add hub75 connectors
         platform.add_extension(helper.hub75_conn(platform))
 
-        self.submodules.hub75 = Hub75(
-            1e5,
-            sys_clk_freq,
-            platform.request("hub75_data", 1),
-            platform.request("hub75_common"),
+        hub75_common = hub75.Common(
+            1e5, sys_clk_freq, platform.request("hub75_common"),
+        )
+        self.submodules.hub75_common = hub75_common
+
+        self.submodules.hub75_specific1 = hub75.Specific(
+            hub75_common, platform.request("hub75_data", 1),
         )
 
         # SDR SDRAM --------------------------------------------------------------------------------

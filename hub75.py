@@ -24,15 +24,14 @@ def _get_image_array():
     return out_array
 
 
-class Hub75(Module):
-    def __init__(
-        self, out_freq, sys_clk_freq, outputs_specific, outputs_common, collumns=64
-    ):
-        img = _get_image_array()
+class Common(Module):
+    def __init__(self, out_freq, sys_clk_freq, outputs_common, collumns=64):
         counter = Signal(max=int((sys_clk_freq / out_freq) / 2))
         collumn_counter = Signal(max=collumns)
+        self.collumn = collumn_counter
         row_active = Signal(4)
         row_shifting = Signal(4)
+        self.row = row_shifting
         output_data = Signal()
         fsm = FSM(reset_state="SHIFTING_SET_STATE")
         self.submodules.fsm = fsm
@@ -58,9 +57,6 @@ class Hub75(Module):
             outputs_common.lat.eq(0),
             outputs_common.clk.eq(0),
             output_data.eq(1),
-            NextValue(outputs_specific.r0, img[row_shifting][collumn_counter][0]),
-            NextValue(outputs_specific.g0, img[row_shifting][collumn_counter][1]),
-            NextValue(outputs_specific.b0, img[row_shifting][collumn_counter][2]),
             NextState("SHIFTING_DOWN"),
         )
         fsm.act(
@@ -87,14 +83,21 @@ class Hub75(Module):
         # combinatorial assignements
         self.comb += [
             # Static outputs
-            outputs_specific.r1.eq(0),
-            outputs_specific.g1.eq(0),
-            outputs_specific.b1.eq(0),
             outputs_common.oe.eq(
                 (collumn_counter < 8) | (collumn_counter > (collumns - 8))
             ),
             outputs_common.row.eq(row_active),
             row_shifting.eq(row_active + 1),
+        ]
+
+
+class Specific(Module):
+    def __init__(self, hub75_common, outputs_specific, collumns=64):
+        img = _get_image_array()
+        self.sync += [
+            outputs_specific.r0.eq(img[hub75_common.row][hub75_common.collumn][0]),
+            outputs_specific.g0.eq(img[hub75_common.row][hub75_common.collumn][1]),
+            outputs_specific.b0.eq(img[hub75_common.row][hub75_common.collumn][2]),
         ]
 
 
@@ -122,9 +125,19 @@ def _test(pads, dut, cols):
         yield from _test_row(pads, dut, i, cols)
 
 
+class _TestModule(Module):
+    def __init__(
+        self, out_freq, sys_clk_freq, outputs_common, outputs_specific, collumns
+    ):
+        hub75_common = Common(out_freq, sys_clk_freq, outputs_common, collumns)
+        hub75_specific = Specific(hub75_common, outputs_specific, collumns)
+        self.submodules.common = hub75_common
+        self.submodules.specific = hub75_specific
+
+
 if __name__ == "__main__":
     pads = _TestPads()
     collumns = 64
-    dut = Hub75(1, 4, pads, pads, collumns)
+    dut = _TestModule(1, 4, pads, pads, collumns)
     dut.clock_domains.cd_sys = ClockDomain("sys")
     run_simulation(dut, _test(pads, dut, collumns), vcd_name="output_test.vcd")

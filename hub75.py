@@ -1,11 +1,34 @@
 #!/usr/bin/env python3
 from migen import *
 
+import png
+
+
+def _get_image_array():
+    r = png.Reader(file=open("demo_img.png", "rb"))
+    img = r.read()
+    assert img[0] == 64
+    assert img[1] == 16
+    threshhold = (1 << img[3]["bitdepth"]) // 2
+    pixels = list(img[2])
+    out_array = Array()
+    for arr in pixels:
+        # Assue rgba
+        row_arr = Array()
+        for i in range(64):
+            red = bool(arr[i * 4 + 0] // threshhold)
+            green = bool(arr[i * 4 + 1] // threshhold)
+            blue = bool(arr[i * 4 + 2] // threshhold)
+            row_arr.append((red, green, blue))
+        out_array.append(row_arr)
+    return out_array
+
 
 class Hub75(Module):
     def __init__(
         self, out_freq, sys_clk_freq, outputs_specific, outputs_common, collumns=64
     ):
+        img = _get_image_array()
         counter = Signal(max=int((sys_clk_freq / out_freq) / 2))
         collumn_counter = Signal(max=collumns)
         row_active = Signal(4)
@@ -35,10 +58,9 @@ class Hub75(Module):
             outputs_common.lat.eq(0),
             outputs_common.clk.eq(0),
             output_data.eq(1),
-            If(
-                (row_shifting & ((1 << (collumn_counter[:2])))),
-                NextValue(outputs_specific.g0, 1),
-            ).Else(NextValue(outputs_specific.g0, 0)),
+            NextValue(outputs_specific.r0, img[row_shifting][collumn_counter][0]),
+            NextValue(outputs_specific.g0, img[row_shifting][collumn_counter][1]),
+            NextValue(outputs_specific.b0, img[row_shifting][collumn_counter][2]),
             NextState("SHIFTING_DOWN"),
         )
         fsm.act(
@@ -65,8 +87,6 @@ class Hub75(Module):
         # combinatorial assignements
         self.comb += [
             # Static outputs
-            outputs_specific.r0.eq(0),
-            outputs_specific.b0.eq(0),
             outputs_specific.r1.eq(0),
             outputs_specific.g1.eq(0),
             outputs_specific.b1.eq(0),

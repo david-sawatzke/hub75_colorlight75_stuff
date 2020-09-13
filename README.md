@@ -9,6 +9,11 @@ $ chmod +x litex_setup.py
 $ sudo ./litex_setup.py init install
 ```
 
+## Install other dependencies
+
+``` sh
+pip install -r requirements.txt
+```
 
 ## To build
 

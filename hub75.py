@@ -2,7 +2,7 @@
 from migen import *
 
 
-class GPIOStatic(Module):
+class Hub75(Module):
     def __init__(
         self, out_freq, sys_clk_freq, outputs_specific, outputs_common, collumns=64
     ):
@@ -10,6 +10,7 @@ class GPIOStatic(Module):
         collumn_counter = Signal(max=collumns)
         row_active = Signal(4)
         row_shifting = Signal(4)
+        output_data = Signal()
         fsm = FSM(reset_state="SHIFTING_SET_STATE")
         self.submodules.fsm = fsm
         fsm.act(
@@ -33,6 +34,7 @@ class GPIOStatic(Module):
             "SHIFTING_SET_STATE",
             outputs_common.lat.eq(0),
             outputs_common.clk.eq(0),
+            output_data.eq(1),
             If(
                 (row_shifting & ((1 << (collumn_counter[:2])))),
                 NextValue(outputs_specific.g0, 1),
@@ -103,6 +105,6 @@ def _test(pads, dut, cols):
 if __name__ == "__main__":
     pads = _TestPads()
     collumns = 64
-    dut = GPIOStatic(1, 4, pads, pads, collumns)
+    dut = Hub75(1, 4, pads, pads, collumns)
     dut.clock_domains.cd_sys = ClockDomain("sys")
     run_simulation(dut, _test(pads, dut, collumns), vcd_name="output_test.vcd")

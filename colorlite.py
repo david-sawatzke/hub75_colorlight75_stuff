@@ -61,7 +61,7 @@ from liteeth.phy.ecp5rgmii import LiteEthPHYRGMII
 
 from litex.build.generic_platform import Subsignal, Pins, Misc, IOStandard
 
-from output_test import GPIOStatic
+from hub75 import Hub75
 
 import helper
 
@@ -129,7 +129,7 @@ class BaseSoC(SoCCore):
         # Add hub75 connectors
         platform.add_extension(helper.hub75_conn(platform))
 
-        self.submodules.test0 = GPIOStatic(
+        self.submodules.hub75 = Hub75(
             1e5,
             sys_clk_freq,
             platform.request("hub75_data", 1),

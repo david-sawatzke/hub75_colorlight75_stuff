@@ -130,7 +130,7 @@ class BaseSoC(SoCCore):
         platform.add_extension(helper.hub75_conn(platform))
 
         hub75_common = hub75.Common(
-            1e5, sys_clk_freq, platform.request("hub75_common"),
+            6e6, sys_clk_freq, platform.request("hub75_common"),
         )
         self.submodules.hub75_common = hub75_common
 

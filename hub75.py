@@ -9,26 +9,33 @@ def _get_image_array():
     img = r.read()
     assert img[0] == 64
     assert img[1] == 16
-    threshhold = (1 << img[3]["bitdepth"]) // 2
     pixels = list(img[2])
     out_array = Array()
     for arr in pixels:
         # Assue rgba
         row_arr = Array()
         for i in range(64):
-            red = bool(arr[i * 4 + 0] // threshhold)
-            green = bool(arr[i * 4 + 1] // threshhold)
-            blue = bool(arr[i * 4 + 2] // threshhold)
+            red = arr[i * 4 + 0]
+            green = arr[i * 4 + 1]
+            blue = arr[i * 4 + 2]
             row_arr.append((red, green, blue))
         out_array.append(row_arr)
     return out_array
 
 
 class Common(Module):
-    def __init__(self, out_freq, sys_clk_freq, outputs_common, collumns=64):
+    def __init__(
+        self, out_freq, sys_clk_freq, outputs_common, collumns=64, brightness_bits=8
+    ):
+        self.collumns = collumns
+        self.brightness_bits = brightness_bits
+
         counter = Signal(max=int((sys_clk_freq / out_freq) / 2))
         collumn_counter = Signal(max=collumns)
         self.collumn = collumn_counter
+        brightness_bit = Signal(max=brightness_bits)
+        self.bit = brightness_bit
+        brightness_counter = Signal(max=(1 << brightness_bits))
         row_active = Signal(4)
         row_shifting = Signal(4)
         self.row = row_shifting
@@ -44,7 +51,7 @@ class Common(Module):
                 If(
                     collumn_counter == collumns - 1,
                     NextValue(collumn_counter, 0),
-                    NextState("LATCH"),
+                    NextState("WAIT"),
                 ).Else(
                     NextValue(collumn_counter, collumn_counter + 1),
                     NextState("SHIFTING_SET_STATE"),
@@ -65,12 +72,21 @@ class Common(Module):
             outputs_common.clk.eq(0),
             If(counter == 0, NextState("SHIFTING_UP"),),
         )
+        fsm.act("WAIT", If(brightness_counter == 0, NextState("LATCH")))
         fsm.act(
             "LATCH",
             outputs_common.lat.eq(1),
             If(
                 counter == 0,
-                NextValue(row_active, row_active + 1),
+                NextValue(brightness_counter, 1 << brightness_bit),
+                If(
+                    brightness_bit != 0,
+                    NextValue(row_active, row_shifting),
+                    NextValue(brightness_bit, brightness_bit - 1),
+                ).Else(
+                    NextValue(row_shifting, row_shifting + 1),
+                    NextValue(brightness_bit, brightness_bits - 1),
+                ),
                 NextState("SHIFTING_SET_STATE"),
             ),
         )
@@ -78,26 +94,46 @@ class Common(Module):
         self.sync += [
             counter.eq(counter + 1),
             If(counter == int((sys_clk_freq / out_freq) / 2 - 1), counter.eq(0)),
+            If(brightness_counter != 0, brightness_counter.eq(brightness_counter - 1)),
         ]
 
         # combinatorial assignements
         self.comb += [
             # Static outputs
             outputs_common.oe.eq(
-                (collumn_counter < 8) | (collumn_counter > (collumns - 8))
+                brightness_counter
+                == 0
+                # (collumn_counter < 8) | (collumn_counter > (collumns - 8))
             ),
             outputs_common.row.eq(row_active),
-            row_shifting.eq(row_active + 1),
         ]
 
 
 class Specific(Module):
-    def __init__(self, hub75_common, outputs_specific, collumns=64):
+    def __init__(self, hub75_common, outputs_specific):
         img = _get_image_array()
         self.sync += [
-            outputs_specific.r0.eq(img[hub75_common.row][hub75_common.collumn][0]),
-            outputs_specific.g0.eq(img[hub75_common.row][hub75_common.collumn][1]),
-            outputs_specific.b0.eq(img[hub75_common.row][hub75_common.collumn][2]),
+            outputs_specific.r0.eq(
+                (
+                    img[hub75_common.row][hub75_common.collumn][0]
+                    & (1 << hub75_common.bit)
+                )
+                != 0
+            ),
+            outputs_specific.g0.eq(
+                (
+                    img[hub75_common.row][hub75_common.collumn][1]
+                    & (1 << hub75_common.bit)
+                )
+                != 0
+            ),
+            outputs_specific.b0.eq(
+                (
+                    img[hub75_common.row][hub75_common.collumn][2]
+                    & (1 << hub75_common.bit)
+                )
+                != 0
+            ),
         ]
 
 
@@ -130,7 +166,7 @@ class _TestModule(Module):
         self, out_freq, sys_clk_freq, outputs_common, outputs_specific, collumns
     ):
         hub75_common = Common(out_freq, sys_clk_freq, outputs_common, collumns)
-        hub75_specific = Specific(hub75_common, outputs_specific, collumns)
+        hub75_specific = Specific(hub75_common, outputs_specific)
         self.submodules.common = hub75_common
         self.submodules.specific = hub75_specific
 

@@ -23,6 +23,16 @@ def _get_image_array():
     return out_array
 
 
+def _get_gamma_corr(bits_in=8, bits_out=8):
+    gamma = 2.8
+    max_in = (1 << bits_in) - 1
+    max_out = (1 << bits_out) - 1
+    gamma_lut = Array()
+    for i in range(max_in + 1):
+        gamma_lut.append(int(pow(i / max_in, gamma) * max_out + 0.5))
+    return gamma_lut
+
+
 class Common(Module):
     def __init__(
         self, out_freq, sys_clk_freq, outputs_common, collumns=64, brightness_bits=8
@@ -112,24 +122,25 @@ class Common(Module):
 class Specific(Module):
     def __init__(self, hub75_common, outputs_specific):
         img = _get_image_array()
+        gamma_lut = _get_gamma_corr()
         self.sync += [
             outputs_specific.r0.eq(
                 (
-                    img[hub75_common.row][hub75_common.collumn][0]
+                    gamma_lut[img[hub75_common.row][hub75_common.collumn][0]]
                     & (1 << hub75_common.bit)
                 )
                 != 0
             ),
             outputs_specific.g0.eq(
                 (
-                    img[hub75_common.row][hub75_common.collumn][1]
+                    gamma_lut[img[hub75_common.row][hub75_common.collumn][1]]
                     & (1 << hub75_common.bit)
                 )
                 != 0
             ),
             outputs_specific.b0.eq(
                 (
-                    img[hub75_common.row][hub75_common.collumn][2]
+                    gamma_lut[img[hub75_common.row][hub75_common.collumn][2]]
                     & (1 << hub75_common.bit)
                 )
                 != 0

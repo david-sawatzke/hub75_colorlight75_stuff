@@ -23,6 +23,33 @@ def _get_image_array():
     return out_array
 
 
+def _get_indexed_image_arrays():
+    r = png.Reader(file=open("demo_img.png", "rb"))
+    img = r.read()
+    assert img[0] == 64
+    assert img[1] == 16
+    pixels = list(img[2])
+    out_array = Array()
+    # Get image data
+    for arr in pixels:
+        row_arr = Array()
+        for i in range(64):
+            row_arr.append(arr[i])
+        out_array.append(row_arr)
+    # Get palette data
+    # rgbrgbrgb
+    r_palette = Array()
+    g_palette = Array()
+    b_palette = Array()
+    # Probably rgb?
+    png_palette = img[3]["palette"]
+    for a in png_palette:
+        r_palette.append(a[0])
+        g_palette.append(a[1])
+        b_palette.append(a[2])
+    return (out_array, r_palette, g_palette, b_palette)
+
+
 def _get_gamma_corr(bits_in=8, bits_out=8):
     gamma = 2.8
     max_in = (1 << bits_in) - 1
@@ -121,30 +148,21 @@ class Common(Module):
 
 class Specific(Module):
     def __init__(self, hub75_common, outputs_specific):
-        img = _get_image_array()
+        img = _get_indexed_image_arrays()
+        r_palette = img[1]
+        g_palette = img[2]
+        b_palette = img[3]
+        img = img[0]
         gamma_lut = _get_gamma_corr()
+        # If it's not a seperate signal, there's breakage, somehow
+        # TODO Find out why
+        palette_index = Signal(8)
+        bit = 1 << hub75_common.bit
         self.sync += [
-            outputs_specific.r0.eq(
-                (
-                    gamma_lut[img[hub75_common.row][hub75_common.collumn][0]]
-                    & (1 << hub75_common.bit)
-                )
-                != 0
-            ),
-            outputs_specific.g0.eq(
-                (
-                    gamma_lut[img[hub75_common.row][hub75_common.collumn][1]]
-                    & (1 << hub75_common.bit)
-                )
-                != 0
-            ),
-            outputs_specific.b0.eq(
-                (
-                    gamma_lut[img[hub75_common.row][hub75_common.collumn][2]]
-                    & (1 << hub75_common.bit)
-                )
-                != 0
-            ),
+            palette_index.eq(img[hub75_common.row][hub75_common.collumn]),
+            outputs_specific.r0.eq((gamma_lut[r_palette[palette_index]] & bit) != 0),
+            outputs_specific.g0.eq((gamma_lut[g_palette[palette_index]] & bit) != 0),
+            outputs_specific.b0.eq((gamma_lut[b_palette[palette_index]] & bit) != 0),
         ]
 
 
@@ -163,7 +181,7 @@ class _TestPads(Module):
 
 
 def _test_row(pads, dut, row, cols):
-    for i in range((cols * 2 + 4) * 2):
+    for i in range(((cols * 2 + 4) * 2) * 8):
         yield
 
 

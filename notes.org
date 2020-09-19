@@ -20,3 +20,33 @@
 - ICN2028 http://www.xlix.ru/datasheet/ICN2053.pdf
 * Protocol description
 - https://bikerglen.com/projects/lighting/led-panel-1up/
+* Usefull stuff (unused)
+- Migen Clock Domain Summary
+  https://gist.github.com/cr1901/5de5b276fca539b66fe7f4493a5bfe7d
+* Pros for migen & litex
+(partially based on https://www.bunniestudios.com/blog/?p=5018)
+- Fast
+- Fail early
+- Great metascripting capabilities
+* hub75 output pipeline
+We can read 4 bytes of ram once per cycle -> just use 3, makes rgb nicer
+Pipeline for palette mode:
+1. Read 1 byte from ram (maybe internal)
+2. palette lookup (split in three paths, rgb)
+2. gamma table & bitmask output
+Pipeline for direct mode:
+1. Read 3 bytes from ram
+2. Buffer it, to make the pipeline fit with the palette mode
+3. Gamma lookup
+
+3 cycles latency, each output is buffered and flips on the display down clock
+
+When is the memory written? Palettes can be dual port ram, but image data (at
+least for direct mode) can't, since we don't have dual port ram
+
+Just buffer the data and write it, when the longest OE is set, which we *should*
+make long enough, so that there's enough time without shifting
+* Memory layout
+Since we always read 4 bytes, just use the upper byte for the indexed image
+ander the lower 3 bytes for rgb -> rgbi
+We can reuse sram access & indexing code

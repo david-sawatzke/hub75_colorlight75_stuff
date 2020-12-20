@@ -62,12 +62,13 @@ def _get_gamma_corr(bits_in=8, bits_out=8):
 
 class Common(Module):
     def __init__(
-        self, out_freq, sys_clk_freq, outputs_common, collumns=64, brightness_bits=8
+        self, outputs_common, collumns=64, brightness_bits=8
     ):
         self.collumns = collumns
         self.brightness_bits = brightness_bits
+        counter_max = 8
 
-        counter = Signal(max=int((sys_clk_freq / out_freq) / 2))
+        counter = Signal(max=counter_max)
         collumn_counter = Signal(max=collumns)
         self.collumn = collumn_counter
         brightness_bit = Signal(max=brightness_bits)
@@ -130,7 +131,7 @@ class Common(Module):
         # synchronous assignments
         self.sync += [
             counter.eq(counter + 1),
-            If(counter == int((sys_clk_freq / out_freq) / 2 - 1), counter.eq(0)),
+            If(counter == counter_max - 1, counter.eq(0)),
             If(brightness_counter != 0, brightness_counter.eq(brightness_counter - 1)),
         ]
 

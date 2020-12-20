@@ -129,7 +129,7 @@ class RowModule(Module):
         clk: Signal(1),
         collumns: int = 64,
     ):
-        delay = 2
+        delay = 4
         counter_max = collumns * 16
         counter = Signal(max=counter_max)
         output_counter = Signal(max=collumns * 16)
@@ -173,18 +173,33 @@ class Specific(Module):
         g_palette = img[2]
         b_palette = img[3]
         img = img[0]
-        gamma_lut = _get_gamma_corr()
         # If it's not a seperate signal, there's breakage, somehow
         # TODO Find out why
         palette_index = Signal(8)
-        bit = 1 << hub75_common.bit
+        r_value = Signal(8)
+        g_value = Signal(8)
+        b_value = Signal(8)
+        self.submodules.r_gamma = r_gamma = GammaCorrection(r_value, 8, hub75_common.bit)
+        self.submodules.g_gamma = g_gamma = GammaCorrection(g_value, 8, hub75_common.bit)
+        self.submodules.b_gamma = b_gamma = GammaCorrection(b_value, 8, hub75_common.bit)
+
         self.sync += [
             palette_index.eq(img[hub75_common.row][hub75_common.collumn]),
-            outputs_specific.r0.eq((gamma_lut[r_palette[palette_index]] & bit) != 0),
-            outputs_specific.g0.eq((gamma_lut[g_palette[palette_index]] & bit) != 0),
-            outputs_specific.b0.eq((gamma_lut[b_palette[palette_index]] & bit) != 0),
+            r_value.eq(r_palette[palette_index]),
+            g_value.eq(g_palette[palette_index]),
+            b_value.eq(b_palette[palette_index]),
+            outputs_specific.r0.eq(r_gamma.out_bit),
+            outputs_specific.g0.eq(g_gamma.out_bit),
+            outputs_specific.b0.eq(b_gamma.out_bit),
         ]
-
+#
+# 1 cycle delay
+class GammaCorrection(Module):
+    def __init__(self, value, brightness_bits, bit):
+        self.out_bit = Signal()
+        gamma_lut = _get_gamma_corr(bits_out=brightness_bits)
+        bit_mask = 1 << bit
+        self.sync += [self.out_bit.eq((gamma_lut[value] & bit_mask) != 0)]
 
 class _TestPads(Module):
     def __init__(self):

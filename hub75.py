@@ -65,12 +65,14 @@ class Common(Module):
         self, outputs_common, collumns=64, brightness_bits=8
     ):
         self.collumns = collumns
+        start_shifting = Signal(1)
+        row_module = RowModule(start_shifting, outputs_common.clk, collumns)
+        self.submodules.row_module = row_module
         self.brightness_bits = brightness_bits
         counter_max = 8
 
         counter = Signal(max=counter_max)
-        collumn_counter = Signal(max=collumns)
-        self.collumn = collumn_counter
+        self.collumn = row_module.collumn
         brightness_bit = Signal(max=brightness_bits)
         self.bit = brightness_bit
         brightness_counter = Signal(max=(1 << brightness_bits))
@@ -78,45 +80,18 @@ class Common(Module):
         row_shifting = Signal(4)
         self.row = row_shifting
         output_data = Signal()
-        fsm = FSM(reset_state="SHIFTING_SET_STATE")
+        fsm = FSM(reset_state="WAIT")
         self.submodules.fsm = fsm
-        fsm.act(
-            "SHIFTING_UP",
-            outputs_common.lat.eq(0),
-            outputs_common.clk.eq(1),
-            If(
-                counter == 0,
-                If(
-                    collumn_counter == collumns - 1,
-                    NextValue(collumn_counter, 0),
-                    NextState("WAIT"),
-                ).Else(
-                    NextValue(collumn_counter, collumn_counter + 1),
-                    NextState("SHIFTING_SET_STATE"),
-                ),
-            ),
-        )
-        # Set new data here, as it's sampled from L->H
-        fsm.act(
-            "SHIFTING_SET_STATE",
-            outputs_common.lat.eq(0),
-            outputs_common.clk.eq(0),
-            output_data.eq(1),
-            NextState("SHIFTING_DOWN"),
-        )
-        fsm.act(
-            "SHIFTING_DOWN",
-            outputs_common.lat.eq(0),
-            outputs_common.clk.eq(0),
-            If(counter == 0, NextState("SHIFTING_UP"),),
-        )
-        fsm.act("WAIT", If(brightness_counter == 0, NextState("LATCH")))
+        fsm.act("WAIT", outputs_common.lat.eq(0),
+                start_shifting.eq(0),
+                If(((brightness_counter == 0) & row_module.shifting_done), NextState("LATCH")))
         fsm.act(
             "LATCH",
             outputs_common.lat.eq(1),
             If(
                 counter == 0,
                 NextValue(brightness_counter, 1 << brightness_bit),
+                start_shifting.eq(1),
                 If(
                     brightness_bit != 0,
                     NextValue(row_active, row_shifting),
@@ -125,7 +100,9 @@ class Common(Module):
                     NextValue(row_shifting, row_shifting + 1),
                     NextValue(brightness_bit, brightness_bits - 1),
                 ),
-                NextState("SHIFTING_SET_STATE"),
+                NextState("WAIT"),
+            ).Else(
+                start_shifting.eq(0),
             ),
         )
         # synchronous assignments
@@ -141,10 +118,52 @@ class Common(Module):
             outputs_common.oe.eq(
                 brightness_counter
                 == 0
-                # (collumn_counter < 8) | (collumn_counter > (collumns - 8))
             ),
             outputs_common.row.eq(row_active),
         ]
+
+class RowModule(Module):
+    def __init__(
+        self,
+        start_shifting: Signal(1),
+        clk: Signal(1),
+        collumns: int = 64,
+    ):
+        delay = 2
+        counter_max = collumns * 16
+        counter = Signal(max=counter_max)
+        output_counter = Signal(max=collumns * 16)
+        output_select = Signal(4)
+        output_collumn = Signal(max=collumns)
+        collumn = Signal(max=collumns)
+        shifting_done = Signal(1)
+        self.collumn = collumn
+        self.shifting_done = shifting_done
+        self.comb += [
+            If(counter < delay, output_counter.eq(0)).Else(output_counter.eq(counter - delay)),
+            If(output_select < 8, clk.eq(0)).Else(clk.eq(1)),
+            output_select.eq(output_counter & 0xF),
+            output_collumn.eq(output_counter >> 4),
+            If(counter < counter_max - delay,
+                collumn.eq(counter >> 4),
+            ).Else(
+                collumn.eq(0),
+                ),
+        ]
+
+        self.sync += [
+            If(counter != (counter_max - 1), counter.eq(counter + 1)),
+            If(
+                (counter == (counter_max - 1)) & (start_shifting == 1),
+                counter.eq(0),
+
+            ),
+            If(counter == (counter_max - 1), shifting_done.eq(1)).Else(
+                shifting_done.eq(0)
+            ),
+
+        ]
+
 
 
 class Specific(Module):
@@ -195,7 +214,7 @@ class _TestModule(Module):
     def __init__(
         self, out_freq, sys_clk_freq, outputs_common, outputs_specific, collumns
     ):
-        hub75_common = Common(out_freq, sys_clk_freq, outputs_common, collumns)
+        hub75_common = Common(outputs_common, collumns)
         hub75_specific = Specific(hub75_common, outputs_specific)
         self.submodules.common = hub75_common
         self.submodules.specific = hub75_specific

@@ -62,7 +62,7 @@ def _get_gamma_corr(bits_in=8, bits_out=8):
 
 class Common(Module):
     def __init__(
-        self, outputs_common, collumns=64, brightness_bits=8
+            self, outputs_common, brightness_psc = 1, collumns=64, brightness_bits=8
     ):
         self.collumns = collumns
         start_shifting = Signal(1)
@@ -75,7 +75,7 @@ class Common(Module):
         self.collumn = row_module.collumn
         brightness_bit = Signal(max=brightness_bits)
         self.bit = brightness_bit
-        brightness_counter = Signal(max=(1 << brightness_bits))
+        brightness_counter = Signal(max=(1 << brightness_bits) * brightness_psc)
         row_active = Signal(4)
         row_shifting = Signal(4)
         self.row = row_shifting
@@ -90,7 +90,7 @@ class Common(Module):
             outputs_common.lat.eq(1),
             If(
                 counter == 0,
-                NextValue(brightness_counter, 1 << brightness_bit),
+                NextValue(brightness_counter, (1 << brightness_bit) * brightness_psc),
                 start_shifting.eq(1),
                 If(
                     brightness_bit != 0,

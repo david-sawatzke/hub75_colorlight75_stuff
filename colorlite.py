@@ -130,7 +130,7 @@ class BaseSoC(SoCCore):
         platform.add_extension(helper.hub75_conn(platform))
 
         hub75_common = hub75.Common(
-            platform.request("hub75_common"),
+            platform.request("hub75_common"), brightness_psc = 10,
         )
         self.submodules.hub75_common = hub75_common
 

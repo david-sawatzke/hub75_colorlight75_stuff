@@ -38,9 +38,9 @@ def _get_indexed_image_arrays():
         out_array.append(row_arr)
     # Get palette data
     # rgbrgbrgb
-    r_palette = Array()
-    g_palette = Array()
-    b_palette = Array()
+    r_palette = []
+    g_palette = []
+    b_palette = []
     # Probably rgb?
     png_palette = img[3]["palette"]
     for a in png_palette:
@@ -169,9 +169,12 @@ class RowModule(Module):
 class Specific(Module):
     def __init__(self, hub75_common, outputs_specific):
         img = _get_indexed_image_arrays()
-        r_palette = img[1]
-        g_palette = img[2]
-        b_palette = img[3]
+        self.specials.r_palette_memory = r_palette_memory = Memory(width = 8, depth = len(img[1]), init = img[1])
+        self.specials.r_palette = r_palette = r_palette_memory.get_port()
+        self.specials.g_palette_memory = g_palette_memory = Memory(width = 8, depth = len(img[2]), init = img[2])
+        self.specials.g_palette = g_palette = g_palette_memory.get_port()
+        self.specials.b_palette_memory = b_palette_memory = Memory(width = 8, depth = len(img[3]), init = img[3])
+        self.specials.b_palette = b_palette = b_palette_memory.get_port()
         img = img[0]
         # If it's not a seperate signal, there's breakage, somehow
         # TODO Find out why
@@ -185,13 +188,19 @@ class Specific(Module):
 
         self.sync += [
             palette_index.eq(img[hub75_common.row][hub75_common.collumn]),
-            r_value.eq(r_palette[palette_index]),
-            g_value.eq(g_palette[palette_index]),
-            b_value.eq(b_palette[palette_index]),
             outputs_specific.r0.eq(r_gamma.out_bit),
             outputs_specific.g0.eq(g_gamma.out_bit),
             outputs_specific.b0.eq(b_gamma.out_bit),
         ]
+        self.comb += [
+            r_palette.adr.eq(palette_index),
+            r_value.eq(r_palette.dat_r),
+            g_palette.adr.eq(palette_index),
+            g_value.eq(g_palette.dat_r),
+            b_palette.adr.eq(palette_index),
+            b_value.eq(b_palette.dat_r),
+        ]
+
 #
 # 1 cycle delay
 class GammaCorrection(Module):

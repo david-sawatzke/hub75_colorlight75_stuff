@@ -170,43 +170,46 @@ class Specific(Module):
     def __init__(self, hub75_common, outputs_specific):
         img = _get_indexed_image_arrays()
         self.specials.r_palette_memory = r_palette_memory = Memory(width = 8, depth = len(img[1]), init = img[1])
-        self.specials.r_palette = r_palette = r_palette_memory.get_port()
         self.specials.g_palette_memory = g_palette_memory = Memory(width = 8, depth = len(img[2]), init = img[2])
-        self.specials.g_palette = g_palette = g_palette_memory.get_port()
         self.specials.b_palette_memory = b_palette_memory = Memory(width = 8, depth = len(img[3]), init = img[3])
-        self.specials.b_palette = b_palette = b_palette_memory.get_port()
         img = img[0]
         # If it's not a seperate signal, there's breakage, somehow
         # TODO Find out why
         palette_index = Signal(8)
-        r_value = Signal(8)
-        g_value = Signal(8)
-        b_value = Signal(8)
-        self.submodules.r_gamma = r_gamma = GammaCorrection(r_value, 8, hub75_common.bit)
-        self.submodules.g_gamma = g_gamma = GammaCorrection(g_value, 8, hub75_common.bit)
-        self.submodules.b_gamma = b_gamma = GammaCorrection(b_value, 8, hub75_common.bit)
-
+        self.submodules.r_color = RowColorModule(outputs_specific.r0, palette_index, hub75_common.bit, r_palette_memory, 8)
+        self.submodules.g_color = RowColorModule(outputs_specific.g0, palette_index, hub75_common.bit, g_palette_memory, 8)
+        self.submodules.b_color = RowColorModule(outputs_specific.b0, palette_index, hub75_common.bit, b_palette_memory, 8)
         self.sync += [
             palette_index.eq(img[hub75_common.row][hub75_common.collumn]),
-            outputs_specific.r0.eq(r_gamma.out_bit),
-            outputs_specific.g0.eq(g_gamma.out_bit),
-            outputs_specific.b0.eq(b_gamma.out_bit),
         ]
+        self.comb += []
+
+class RowColorModule(Module):
+    def __init__(
+            self,
+            output: Signal(1),
+            indexed_input: Signal(8),
+            bit: Signal(3),
+            palette,
+            out_bits: int = 8,
+            ):
+        self.specials.palette_port = palette_port = palette.get_port()
+        self.submodules.gamma = gamma = GammaCorrection(palette_port.dat_r, out_bits, bit)
+
+        self.sync += [
+            output.eq(gamma.out_bit),
+        ]
+
         self.comb += [
-            r_palette.adr.eq(palette_index),
-            r_value.eq(r_palette.dat_r),
-            g_palette.adr.eq(palette_index),
-            g_value.eq(g_palette.dat_r),
-            b_palette.adr.eq(palette_index),
-            b_value.eq(b_palette.dat_r),
+            palette_port.adr.eq(indexed_input)
         ]
 
 #
 # 1 cycle delay
 class GammaCorrection(Module):
-    def __init__(self, value, brightness_bits, bit):
+    def __init__(self, value, out_bits, bit):
         self.out_bit = Signal()
-        gamma_lut = _get_gamma_corr(bits_out=brightness_bits)
+        gamma_lut = _get_gamma_corr(bits_out=out_bits)
         bit_mask = 1 << bit
         self.sync += [self.out_bit.eq((gamma_lut[value] & bit_mask) != 0)]
 

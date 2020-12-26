@@ -66,9 +66,9 @@ class Common(Module):
     ):
         self.collumns = collumns
         start_shifting = Signal(1)
-        row_module = RowModule(start_shifting, outputs_common.clk, collumns)
-        self.submodules.row_module = row_module
+        self.submodules.row_module = row_module = RowModule(start_shifting, outputs_common.clk, collumns)
         self.brightness_bits = brightness_bits
+        self.buffer_select = row_module.buffer_select
         counter_max = 8
 
         counter = Signal(max=counter_max)
@@ -129,9 +129,13 @@ class RowModule(Module):
         clk: Signal(1),
         collumns: int = 64,
     ):
-        delay = 4
-        counter_max = collumns * 16
+        pipeline_delay = 4
+        output_delay = 16
+        delay = pipeline_delay + output_delay
+        counter_max = collumns * 16 + delay
         counter = Signal(max=counter_max)
+        buffer_counter = Signal(max=counter_max)
+        buffer_select = Signal(4)
         output_counter = Signal(max=collumns * 16)
         output_select = Signal(4)
         output_collumn = Signal(max=collumns)
@@ -139,10 +143,13 @@ class RowModule(Module):
         shifting_done = Signal(1)
         self.collumn = collumn
         self.shifting_done = shifting_done
+        self.buffer_select = buffer_select
         self.comb += [
             If(counter < delay, output_counter.eq(0)).Else(output_counter.eq(counter - delay)),
+            If(counter < pipeline_delay, buffer_counter.eq(0)).Else(buffer_counter.eq(counter - pipeline_delay)),
             If(output_select < 8, clk.eq(0)).Else(clk.eq(1)),
             output_select.eq(output_counter & 0xF),
+            buffer_select.eq(buffer_counter & 0xF),
             output_collumn.eq(output_counter >> 4),
             If(counter < counter_max - delay,
                 collumn.eq(counter >> 4),
@@ -176,9 +183,9 @@ class Specific(Module):
         # If it's not a seperate signal, there's breakage, somehow
         # TODO Find out why
         palette_index = Signal(8)
-        self.submodules.r_color = RowColorModule(outputs_specific.r0, palette_index, hub75_common.bit, r_palette_memory, 8)
-        self.submodules.g_color = RowColorModule(outputs_specific.g0, palette_index, hub75_common.bit, g_palette_memory, 8)
-        self.submodules.b_color = RowColorModule(outputs_specific.b0, palette_index, hub75_common.bit, b_palette_memory, 8)
+        self.submodules.r_color = RowColorModule(outputs_specific.r0, palette_index, hub75_common.bit, hub75_common.buffer_select, r_palette_memory, 8)
+        self.submodules.g_color = RowColorModule(outputs_specific.g0, palette_index, hub75_common.bit, hub75_common.buffer_select, g_palette_memory, 8)
+        self.submodules.b_color = RowColorModule(outputs_specific.b0, palette_index, hub75_common.bit, hub75_common.buffer_select, b_palette_memory, 8)
         self.sync += [
             palette_index.eq(img[hub75_common.row][hub75_common.collumn]),
         ]
@@ -190,19 +197,29 @@ class RowColorModule(Module):
             output: Signal(1),
             indexed_input: Signal(8),
             bit: Signal(3),
-            palette,
+            buffer_select: Signal(4),
+            palette, # The memory port, width = 8, depth = 255
             out_bits: int = 8,
             ):
+        outputs = Array() + [output]
+        while len(outputs) < 16:
+            outputs.append(Signal())
+
+        outputs_buffer = Array((Signal()) for x in range(16))
+
         self.specials.palette_port = palette_port = palette.get_port()
         self.submodules.gamma = gamma = GammaCorrection(palette_port.dat_r, out_bits, bit)
 
         self.sync += [
-            output.eq(gamma.out_bit),
+            outputs_buffer[buffer_select].eq(gamma.out_bit),
         ]
 
         self.comb += [
             palette_port.adr.eq(indexed_input)
         ]
+
+        for i in range(16):
+            self.sync += [If(buffer_select == 0, outputs[i].eq(outputs_buffer[i]))]
 
 #
 # 1 cycle delay

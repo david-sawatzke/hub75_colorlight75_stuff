@@ -70,28 +70,54 @@ import helper
 
 
 class _CRG(Module):
-    def __init__(self, platform, sys_clk_freq, with_rst=True):
-        self.clock_domains.cd_sys = ClockDomain()
-        self.clock_domains.cd_sys_ps = ClockDomain(reset_less=True)
+    def __init__(self, platform, sys_clk_freq, use_internal_osc=False, with_usb_pll=False, with_rst=True, sdram_rate="1:1"):
+        self.rst = Signal()
+        self.clock_domains.cd_sys    = ClockDomain()
+        if sdram_rate == "1:2":
+            self.clock_domains.cd_sys2x    = ClockDomain()
+            self.clock_domains.cd_sys2x_ps = ClockDomain(reset_less=True)
+        else:
+            self.clock_domains.cd_sys_ps = ClockDomain(reset_less=True)
 
         # # #
 
         # Clk / Rst
-        clk25 = platform.request("clk25")
+        if not use_internal_osc:
+            clk = platform.request("clk25")
+            clk_freq = 25e6
+        else:
+            clk = Signal()
+            div = 5
+            self.specials += Instance("OSCG",
+                                p_DIV = div,
+                                o_OSC = clk)
+            clk_freq = 310e6/div
+
         rst_n = 1 if not with_rst else platform.request("user_btn_n", 0)
 
         # PLL
         self.submodules.pll = pll = ECP5PLL()
+        self.comb += pll.reset.eq(~rst_n | self.rst)
+        pll.register_clkin(clk, clk_freq)
+        pll.create_clkout(self.cd_sys,    sys_clk_freq)
+        if sdram_rate == "1:2":
+            pll.create_clkout(self.cd_sys2x,    2*sys_clk_freq)
+            pll.create_clkout(self.cd_sys2x_ps, 2*sys_clk_freq, phase=180) # Idealy 90° but needs to be increased.
+        else:
+           pll.create_clkout(self.cd_sys_ps, sys_clk_freq, phase=180) # Idealy 90° but needs to be increased.
 
-        pll.register_clkin(clk25, 25e6)
-        pll.create_clkout(self.cd_sys, sys_clk_freq)
-        pll.create_clkout(
-            self.cd_sys_ps, sys_clk_freq, phase=180
-        )  # Idealy 90° but needs to be increased.
-        self.specials += AsyncResetSynchronizer(self.cd_sys, ~pll.locked | ~rst_n)
+        # USB PLL
+        if with_usb_pll:
+            self.submodules.usb_pll = usb_pll = ECP5PLL()
+            self.comb += usb_pll.reset.eq(~rst_n | self.rst)
+            usb_pll.register_clkin(clk, clk_freq)
+            self.clock_domains.cd_usb_12 = ClockDomain()
+            self.clock_domains.cd_usb_48 = ClockDomain()
+            usb_pll.create_clkout(self.cd_usb_12, 12e6, margin=0)
+            usb_pll.create_clkout(self.cd_usb_48, 48e6, margin=0)
 
         # SDRAM clock
-        sdram_clk = ClockSignal("sys_ps")
+        sdram_clk = ClockSignal("sys2x_ps" if sdram_rate == "1:2" else "sys_ps")
         self.specials += DDROutput(1, 0, platform.request("sdram_clock"), sdram_clk)
 
 
@@ -193,8 +219,7 @@ def main():
         "--eth-phy", default=0, type=int, help="Ethernet PHY 0 or 1 (default=0)"
     )
     parser.add_argument(
-        "--sys-clk-freq", default=25e6, help="System clock frequency (default=60MHz)"
-    )
+        "--sys-clk-freq", default=60e6, help="System clock frequency (default: 60MHz)")
     args = parser.parse_args()
 
     assert not (args.with_ethernet and args.with_etherbone)

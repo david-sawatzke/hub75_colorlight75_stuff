@@ -32,10 +32,8 @@ def _get_indexed_image_arrays():
     out_array = Array()
     # Get image data
     for arr in pixels:
-        row_arr = Array()
         for i in range(64):
-            row_arr.append(arr[i])
-        out_array.append(row_arr)
+            out_array.append(arr[i])
     # Get palette data
     # rgbrgbrgb
     r_palette = []
@@ -128,7 +126,7 @@ class RowModule(Module):
         clk: Signal(1),
         collumns: int = 64,
     ):
-        pipeline_delay = 3
+        pipeline_delay = 4
         output_delay = 16
         delay = pipeline_delay + output_delay
         counter_max = collumns * 16 + delay
@@ -178,6 +176,8 @@ class RowModule(Module):
 class Specific(Module):
     def __init__(self, hub75_common, outputs_specific):
         img = _get_indexed_image_arrays()
+        self.specials.img_memory = img_memory = Memory(width = 8, depth = len(img[0]), init = img[0])
+        self.specials.img_port = img_port = img_memory.get_port()
         self.specials.r_palette_memory = r_palette_memory = Memory(width = 8, depth = len(img[1]), init = img[1])
         self.specials.g_palette_memory = g_palette_memory = Memory(width = 8, depth = len(img[2]), init = img[2])
         self.specials.b_palette_memory = b_palette_memory = Memory(width = 8, depth = len(img[3]), init = img[3])
@@ -191,7 +191,6 @@ class Specific(Module):
             g_pins.append(output.g1)
             b_pins.append(output.b0)
             b_pins.append(output.b1)
-        img = img[0]
         # If it's not a seperate signal, there's breakage, somehow
         # TODO Find out why
         palette_index = Signal(8)
@@ -199,12 +198,14 @@ class Specific(Module):
         self.submodules.g_color = RowColorModule(g_pins,palette_index, hub75_common.bit, hub75_common.row.buffer_select, g_palette_memory, 8)
         self.submodules.b_color = RowColorModule(b_pins,palette_index, hub75_common.bit, hub75_common.row.buffer_select, b_palette_memory, 8)
         self.sync += [
-            If(hub75_common.row.counter_select == 0, palette_index.eq(img[hub75_common.row_select][hub75_common.row.collumn]))
-            .Elif(hub75_common.row.counter_select == 1, palette_index.eq(img[hub75_common.row_select + 16][hub75_common.row.collumn]))
-            .Elif(hub75_common.row.counter_select == 2, palette_index.eq(img[hub75_common.row_select + 32][hub75_common.row.collumn]))
-            .Elif(hub75_common.row.counter_select == 3, palette_index.eq(img[hub75_common.row_select + 48][hub75_common.row.collumn]))
+            If(hub75_common.row.counter_select == 0, img_port.adr.eq((hub75_common.row_select) * 64 + hub75_common.row.collumn))
+            .Elif(hub75_common.row.counter_select == 1, img_port.adr.eq((hub75_common.row_select + 16) * 64 + hub75_common.row.collumn))
+            .Elif(hub75_common.row.counter_select == 2, img_port.adr.eq((hub75_common.row_select + 32) * 64 + hub75_common.row.collumn))
+            .Elif(hub75_common.row.counter_select == 3, img_port.adr.eq((hub75_common.row_select + 48) * 64 + hub75_common.row.collumn))
         ]
-        self.comb += []
+        self.comb += [
+            palette_index.eq(img_port.dat_r),
+        ]
 
 class RowColorModule(Module):
     def __init__(

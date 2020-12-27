@@ -8,7 +8,7 @@ def _get_image_array():
     r = png.Reader(file=open("demo_img.png", "rb"))
     img = r.read()
     assert img[0] == 64
-    assert img[1] == 32
+    assert img[1] == 64
     pixels = list(img[2])
     out_array = Array()
     for arr in pixels:
@@ -27,7 +27,7 @@ def _get_indexed_image_arrays():
     r = png.Reader(file=open("demo_img.png", "rb"))
     img = r.read()
     assert img[0] == 64
-    assert img[1] == 32
+    assert img[1] == 64
     pixels = list(img[2])
     out_array = Array()
     # Get image data
@@ -181,16 +181,28 @@ class Specific(Module):
         self.specials.r_palette_memory = r_palette_memory = Memory(width = 8, depth = len(img[1]), init = img[1])
         self.specials.g_palette_memory = g_palette_memory = Memory(width = 8, depth = len(img[2]), init = img[2])
         self.specials.b_palette_memory = b_palette_memory = Memory(width = 8, depth = len(img[3]), init = img[3])
+        r_pins = Array()
+        g_pins = Array()
+        b_pins = Array()
+        for output in outputs_specific:
+            r_pins.append(output.r0)
+            r_pins.append(output.r1)
+            g_pins.append(output.g0)
+            g_pins.append(output.g1)
+            b_pins.append(output.b0)
+            b_pins.append(output.b1)
         img = img[0]
         # If it's not a seperate signal, there's breakage, somehow
         # TODO Find out why
         palette_index = Signal(8)
-        self.submodules.r_color = RowColorModule(Array([outputs_specific.r0, outputs_specific.r1]),palette_index, hub75_common.bit, hub75_common.row.buffer_select, r_palette_memory, 8)
-        self.submodules.g_color = RowColorModule(Array([outputs_specific.g0, outputs_specific.g1]),palette_index, hub75_common.bit, hub75_common.row.buffer_select, g_palette_memory, 8)
-        self.submodules.b_color = RowColorModule(Array([outputs_specific.b0, outputs_specific.b1]),palette_index, hub75_common.bit, hub75_common.row.buffer_select, b_palette_memory, 8)
+        self.submodules.r_color = RowColorModule(r_pins,palette_index, hub75_common.bit, hub75_common.row.buffer_select, r_palette_memory, 8)
+        self.submodules.g_color = RowColorModule(g_pins,palette_index, hub75_common.bit, hub75_common.row.buffer_select, g_palette_memory, 8)
+        self.submodules.b_color = RowColorModule(b_pins,palette_index, hub75_common.bit, hub75_common.row.buffer_select, b_palette_memory, 8)
         self.sync += [
             If(hub75_common.row.counter_select == 0, palette_index.eq(img[hub75_common.row_select][hub75_common.row.collumn]))
             .Elif(hub75_common.row.counter_select == 1, palette_index.eq(img[hub75_common.row_select + 16][hub75_common.row.collumn]))
+            .Elif(hub75_common.row.counter_select == 2, palette_index.eq(img[hub75_common.row_select + 32][hub75_common.row.collumn]))
+            .Elif(hub75_common.row.counter_select == 3, palette_index.eq(img[hub75_common.row_select + 48][hub75_common.row.collumn]))
         ]
         self.comb += []
 
@@ -261,7 +273,7 @@ class _TestModule(Module):
         self, out_freq, sys_clk_freq, outputs_common, outputs_specific, collumns
     ):
         hub75_common = Common(outputs_common, collumns)
-        hub75_specific = Specific(hub75_common, outputs_specific)
+        hub75_specific = Specific(hub75_common, [outputs_specific])
         self.submodules.common = hub75_common
         self.submodules.specific = hub75_specific
 

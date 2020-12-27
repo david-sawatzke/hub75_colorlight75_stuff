@@ -133,12 +133,10 @@ class BaseSoC(SoCCore):
             platform.request("hub75_common"), brightness_psc = 10,
         )
         self.submodules.hub75_common = hub75_common
+        pins = [platform.request("hub75_data", 1), platform.request("hub75_data", 2)]
 
         self.submodules.hub75_specific1 = hub75.Specific(
-            hub75_common, platform.request("hub75_data", 1),
-        )
-        self.submodules.hub75_specific0 = hub75.Specific(
-            hub75_common, platform.request("hub75_data", 0),
+            hub75_common, pins,
         )
 
         # SDR SDRAM --------------------------------------------------------------------------------

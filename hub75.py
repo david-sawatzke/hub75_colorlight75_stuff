@@ -8,7 +8,7 @@ def _get_image_array():
     r = png.Reader(file=open("demo_img.png", "rb"))
     img = r.read()
     assert img[0] == 64
-    assert img[1] == 16
+    assert img[1] == 32
     pixels = list(img[2])
     out_array = Array()
     for arr in pixels:
@@ -27,7 +27,7 @@ def _get_indexed_image_arrays():
     r = png.Reader(file=open("demo_img.png", "rb"))
     img = r.read()
     assert img[0] == 64
-    assert img[1] == 16
+    assert img[1] == 32
     pixels = list(img[2])
     out_array = Array()
     # Get image data
@@ -128,11 +128,12 @@ class RowModule(Module):
         clk: Signal(1),
         collumns: int = 64,
     ):
-        pipeline_delay = 4
+        pipeline_delay = 3
         output_delay = 16
         delay = pipeline_delay + output_delay
         counter_max = collumns * 16 + delay
         counter = Signal(max=counter_max)
+        counter_select = Signal(4)
         buffer_counter = Signal(max=counter_max)
         buffer_select = Signal(4)
         output_counter = Signal(max=collumns * 16)
@@ -143,12 +144,14 @@ class RowModule(Module):
         self.collumn = collumn
         self.shifting_done = shifting_done
         self.buffer_select = buffer_select
+        self.counter_select = counter_select
         self.comb += [
             If(counter < delay, output_counter.eq(0)).Else(output_counter.eq(counter - delay)),
             If(counter < pipeline_delay, buffer_counter.eq(0)).Else(buffer_counter.eq(counter - pipeline_delay)),
             If(output_select < 8, clk.eq(0)).Else(clk.eq(1)),
             output_select.eq(output_counter & 0xF),
             buffer_select.eq(buffer_counter & 0xF),
+            counter_select.eq(counter & 0xF),
             output_collumn.eq(output_counter >> 4),
             If(counter < counter_max - delay,
                 collumn.eq(counter >> 4),
@@ -186,7 +189,8 @@ class Specific(Module):
         self.submodules.g_color = RowColorModule(Array([outputs_specific.g0, outputs_specific.g1]),palette_index, hub75_common.bit, hub75_common.row.buffer_select, g_palette_memory, 8)
         self.submodules.b_color = RowColorModule(Array([outputs_specific.b0, outputs_specific.b1]),palette_index, hub75_common.bit, hub75_common.row.buffer_select, b_palette_memory, 8)
         self.sync += [
-            palette_index.eq(img[hub75_common.row_select][hub75_common.row.collumn]),
+            If(hub75_common.row.counter_select == 0, palette_index.eq(img[hub75_common.row_select][hub75_common.row.collumn]))
+            .Elif(hub75_common.row.counter_select == 1, palette_index.eq(img[hub75_common.row_select + 16][hub75_common.row.collumn]))
         ]
         self.comb += []
 

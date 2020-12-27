@@ -181,9 +181,11 @@ class Specific(Module):
         self.specials.r_palette_memory = r_palette_memory = Memory(width = 8, depth = len(img[1]), init = img[1])
         self.specials.g_palette_memory = g_palette_memory = Memory(width = 8, depth = len(img[2]), init = img[2])
         self.specials.b_palette_memory = b_palette_memory = Memory(width = 8, depth = len(img[3]), init = img[3])
+        self.specials.r_palette_wport = r_palette_wport = r_palette_memory.get_port(write_capable=True)
         r_pins = Array()
         g_pins = Array()
         b_pins = Array()
+        change_counter = Signal(max=60_000_000)
         for output in outputs_specific:
             r_pins.append(output.r0)
             r_pins.append(output.r1)
@@ -201,7 +203,18 @@ class Specific(Module):
             If(hub75_common.row.counter_select == 0, img_port.adr.eq((hub75_common.row_select) * 64 + hub75_common.row.collumn))
             .Elif(hub75_common.row.counter_select == 1, img_port.adr.eq((hub75_common.row_select + 16) * 64 + hub75_common.row.collumn))
             .Elif(hub75_common.row.counter_select == 2, img_port.adr.eq((hub75_common.row_select + 32) * 64 + hub75_common.row.collumn))
-            .Elif(hub75_common.row.counter_select == 3, img_port.adr.eq((hub75_common.row_select + 48) * 64 + hub75_common.row.collumn))
+            .Elif(hub75_common.row.counter_select == 3, img_port.adr.eq((hub75_common.row_select + 48) * 64 + hub75_common.row.collumn)),
+            change_counter.eq(change_counter - 1),
+            r_palette_wport.adr.eq(7),
+            If(change_counter == 0, change_counter.eq(60_000_000),
+                r_palette_wport.we.eq(True),
+                r_palette_wport.dat_w.eq(255),
+                )
+            .Elif(change_counter == 30_000_000,
+                r_palette_wport.we.eq(True),
+                r_palette_wport.dat_w.eq(0),)
+            .Else(
+                r_palette_wport.we.eq(False),),
         ]
         self.comb += [
             palette_index.eq(img_port.dat_r),

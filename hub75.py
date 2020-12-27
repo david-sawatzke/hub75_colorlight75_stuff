@@ -67,18 +67,17 @@ class Common(Module):
         self.collumns = collumns
         start_shifting = Signal(1)
         self.submodules.row_module = row_module = RowModule(start_shifting, outputs_common.clk, collumns)
+        self.row = row_module
         self.brightness_bits = brightness_bits
-        self.buffer_select = row_module.buffer_select
         counter_max = 8
 
         counter = Signal(max=counter_max)
-        self.collumn = row_module.collumn
         brightness_bit = Signal(max=brightness_bits)
         self.bit = brightness_bit
         brightness_counter = Signal(max=(1 << brightness_bits) * brightness_psc)
         row_active = Signal(4)
         row_shifting = Signal(4)
-        self.row = row_shifting
+        self.row_select = row_shifting
         output_data = Signal()
         fsm = FSM(reset_state="WAIT")
         self.submodules.fsm = fsm
@@ -183,25 +182,24 @@ class Specific(Module):
         # If it's not a seperate signal, there's breakage, somehow
         # TODO Find out why
         palette_index = Signal(8)
-        self.submodules.r_color = RowColorModule(outputs_specific.r0, palette_index, hub75_common.bit, hub75_common.buffer_select, r_palette_memory, 8)
-        self.submodules.g_color = RowColorModule(outputs_specific.g0, palette_index, hub75_common.bit, hub75_common.buffer_select, g_palette_memory, 8)
-        self.submodules.b_color = RowColorModule(outputs_specific.b0, palette_index, hub75_common.bit, hub75_common.buffer_select, b_palette_memory, 8)
+        self.submodules.r_color = RowColorModule(Array([outputs_specific.r0, outputs_specific.r1]),palette_index, hub75_common.bit, hub75_common.row.buffer_select, r_palette_memory, 8)
+        self.submodules.g_color = RowColorModule(Array([outputs_specific.g0, outputs_specific.g1]),palette_index, hub75_common.bit, hub75_common.row.buffer_select, g_palette_memory, 8)
+        self.submodules.b_color = RowColorModule(Array([outputs_specific.b0, outputs_specific.b1]),palette_index, hub75_common.bit, hub75_common.row.buffer_select, b_palette_memory, 8)
         self.sync += [
-            palette_index.eq(img[hub75_common.row][hub75_common.collumn]),
+            palette_index.eq(img[hub75_common.row_select][hub75_common.row.collumn]),
         ]
         self.comb += []
 
 class RowColorModule(Module):
     def __init__(
             self,
-            output: Signal(1),
+            outputs: Array(Signal(1)),
             indexed_input: Signal(8),
             bit: Signal(3),
             buffer_select: Signal(4),
             palette, # The memory port, width = 8, depth = 255
             out_bits: int = 8,
             ):
-        outputs = Array() + [output]
         while len(outputs) < 16:
             outputs.append(Signal())
 

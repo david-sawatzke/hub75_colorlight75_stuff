@@ -70,11 +70,19 @@ import helper
 
 
 class _CRG(Module):
-    def __init__(self, platform, sys_clk_freq, use_internal_osc=False, with_usb_pll=False, with_rst=True, sdram_rate="1:1"):
+    def __init__(
+        self,
+        platform,
+        sys_clk_freq,
+        use_internal_osc=False,
+        with_usb_pll=False,
+        with_rst=True,
+        sdram_rate="1:1",
+    ):
         self.rst = Signal()
-        self.clock_domains.cd_sys    = ClockDomain()
+        self.clock_domains.cd_sys = ClockDomain()
         if sdram_rate == "1:2":
-            self.clock_domains.cd_sys2x    = ClockDomain()
+            self.clock_domains.cd_sys2x = ClockDomain()
             self.clock_domains.cd_sys2x_ps = ClockDomain(reset_less=True)
         else:
             self.clock_domains.cd_sys_ps = ClockDomain(reset_less=True)
@@ -88,10 +96,8 @@ class _CRG(Module):
         else:
             clk = Signal()
             div = 5
-            self.specials += Instance("OSCG",
-                                p_DIV = div,
-                                o_OSC = clk)
-            clk_freq = 310e6/div
+            self.specials += Instance("OSCG", p_DIV=div, o_OSC=clk)
+            clk_freq = 310e6 / div
 
         rst_n = 1 if not with_rst else platform.request("user_btn_n", 0)
 
@@ -99,12 +105,16 @@ class _CRG(Module):
         self.submodules.pll = pll = ECP5PLL()
         self.comb += pll.reset.eq(~rst_n | self.rst)
         pll.register_clkin(clk, clk_freq)
-        pll.create_clkout(self.cd_sys,    sys_clk_freq)
+        pll.create_clkout(self.cd_sys, sys_clk_freq)
         if sdram_rate == "1:2":
-            pll.create_clkout(self.cd_sys2x,    2*sys_clk_freq)
-            pll.create_clkout(self.cd_sys2x_ps, 2*sys_clk_freq, phase=180) # Idealy 90° but needs to be increased.
+            pll.create_clkout(self.cd_sys2x, 2 * sys_clk_freq)
+            pll.create_clkout(
+                self.cd_sys2x_ps, 2 * sys_clk_freq, phase=180
+            )  # Idealy 90° but needs to be increased.
         else:
-           pll.create_clkout(self.cd_sys_ps, sys_clk_freq, phase=180) # Idealy 90° but needs to be increased.
+            pll.create_clkout(
+                self.cd_sys_ps, sys_clk_freq, phase=180
+            )  # Idealy 90° but needs to be increased.
 
         # USB PLL
         if with_usb_pll:
@@ -157,7 +167,8 @@ class BaseSoC(SoCCore):
         platform.add_extension(helper.hub75_conn(platform))
 
         hub75_common = hub75.Common(
-            platform.request("hub75_common"), brightness_psc = 10,
+            platform.request("hub75_common"),
+            brightness_psc=10,
         )
         self.submodules.hub75_common = hub75_common
         pins = [platform.request("hub75_data", 1), platform.request("hub75_data", 2)]
@@ -165,20 +176,21 @@ class BaseSoC(SoCCore):
         # SDR SDRAM --------------------------------------------------------------------------------
         sdrphy_cls = HalfRateGENSDRPHY if sdram_rate == "1:2" else GENSDRPHY
         self.submodules.sdrphy = sdrphy_cls(platform.request("sdram"))
-        sdram_cls  = M12L16161A
+        sdram_cls = M12L16161A
         sdram_size = 0x40000000
-        self.add_sdram("sdram",
-            phy                     = self.sdrphy,
-            module                  = sdram_cls(sys_clk_freq, sdram_rate),
-            origin                  = self.mem_map["main_ram"],
-            size                    = kwargs.get("max_sdram_size", sdram_size),
-            l2_cache_size           = kwargs.get("l2_size", 8192),
-            l2_cache_min_data_width = kwargs.get("min_l2_data_width", 128),
-            l2_cache_reverse        = True
+        self.add_sdram(
+            "sdram",
+            phy=self.sdrphy,
+            module=sdram_cls(sys_clk_freq, sdram_rate),
+            origin=self.mem_map["main_ram"],
+            size=kwargs.get("max_sdram_size", sdram_size),
+            l2_cache_size=kwargs.get("l2_size", 8192),
+            l2_cache_min_data_width=kwargs.get("min_l2_data_width", 128),
+            l2_cache_reverse=True,
         )
 
-        write_port = self.sdram.crossbar.get_port(mode = "write", data_width = 32)
-        read_port = self.sdram.crossbar.get_port(mode = "read", data_width = 32)
+        write_port = self.sdram.crossbar.get_port(mode="write", data_width=32)
+        read_port = self.sdram.crossbar.get_port(mode="read", data_width=32)
 
         self.submodules.hub75_specific1 = hub75.SpecificMemoryStuff(
             hub75_common, pins, write_port, read_port
@@ -222,7 +234,8 @@ def main():
         "--eth-phy", default=0, type=int, help="Ethernet PHY 0 or 1 (default=0)"
     )
     parser.add_argument(
-        "--sys-clk-freq", default=60e6, help="System clock frequency (default: 60MHz)")
+        "--sys-clk-freq", default=60e6, help="System clock frequency (default: 60MHz)"
+    )
     args = parser.parse_args()
 
     assert not (args.with_ethernet and args.with_etherbone)

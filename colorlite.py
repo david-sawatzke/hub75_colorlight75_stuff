@@ -131,6 +131,7 @@ class BaseSoC(SoCCore):
         with_ethernet=False,
         with_etherbone=False,
         sys_clk_freq=60e6,
+        sdram_rate="1:1",
         **kwargs
     ):
         platform = colorlight_5a_75b.Platform(revision=revision)
@@ -161,25 +162,27 @@ class BaseSoC(SoCCore):
         self.submodules.hub75_common = hub75_common
         pins = [platform.request("hub75_data", 1), platform.request("hub75_data", 2)]
 
-        self.submodules.hub75_specific1 = hub75.Specific(
-            hub75_common, pins,
+        # SDR SDRAM --------------------------------------------------------------------------------
+        sdrphy_cls = HalfRateGENSDRPHY if sdram_rate == "1:2" else GENSDRPHY
+        self.submodules.sdrphy = sdrphy_cls(platform.request("sdram"))
+        sdram_cls  = M12L16161A
+        sdram_size = 0x40000000
+        self.add_sdram("sdram",
+            phy                     = self.sdrphy,
+            module                  = sdram_cls(sys_clk_freq, sdram_rate),
+            origin                  = self.mem_map["main_ram"],
+            size                    = kwargs.get("max_sdram_size", sdram_size),
+            l2_cache_size           = kwargs.get("l2_size", 8192),
+            l2_cache_min_data_width = kwargs.get("min_l2_data_width", 128),
+            l2_cache_reverse        = True
         )
 
-        # SDR SDRAM --------------------------------------------------------------------------------
-        # if not self.integrated_main_ram_size:
-        #     sdrphy_cls = GENSDRPHY
-        #     self.submodules.sdrphy = sdrphy_cls(platform.request("sdram"))
-        #     self.add_sdram(
-        #         "sdram",
-        #         phy=self.sdrphy,
-        #         module=M12L16161A(sys_clk_freq, "1:1"),
-        #         origin=self.mem_map["main_ram"],
-        #         size=kwargs.get("max_sdram_size", 0x40000000),
-        #         l2_cache_size=kwargs.get("l2_size", 8192),
-        #         l2_cache_min_data_width=kwargs.get("min_l2_data_width", 128),
-        #         l2_cache_reverse=True,
-        #     )
+        write_port = self.sdram.crossbar.get_port(mode = "write", data_width = 32)
+        read_port = self.sdram.crossbar.get_port(mode = "read", data_width = 32)
 
+        self.submodules.hub75_specific1 = hub75.SpecificMemoryStuff(
+            hub75_common, pins, write_port, read_port
+        )
         # Ethernet / Etherbone ---------------------------------------------------------------------
         # if with_ethernet or with_etherbone:
         #     self.submodules.ethphy = LiteEthPHYRGMII(

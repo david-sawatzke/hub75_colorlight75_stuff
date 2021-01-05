@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 from migen import *
-
+from litedram.frontend.dma import  LiteDRAMDMAWriter
 import png
 
 
@@ -172,20 +172,44 @@ class RowModule(Module):
         ]
 
 
+class SpecificMemoryStuff(Module):
+    def __init__(self, hub75_common, outputs_specific, write_port, read_port):
+        img = _get_indexed_image_arrays()
+        self.clock_domains.cd_sout = ClockDomain()
+        self.submodules.specific = ClockDomainsRenamer("sout")(Specific(hub75_common, outputs_specific, read_port, img))
+        self.submodules.ram_initializer = RamInitializer(write_port, img)
+        # TODO
+        #         platform.add_period_constraint(self.cd_sout.clk, 1e9/60e6)
+        clock_enable = Signal(reset = True)
+        self.comb += [
+            self.cd_sout.clk.eq(clock_enable & ClockSignal("sys"))
+        ]
+
+# Should be replaced with cpu code in the future
+class RamInitializer(Module):
+    def __init__(self, write_port, img):
+        img_data = Array(img[0])
+        img_counter = Signal(max = len(img_data) + 1)
+        self.submodules.writer = writer = LiteDRAMDMAWriter(write_port, 16, True)
+        self.sync += [
+            If((img_counter != len(img_data)) & (writer.sink.ready == True),
+                writer.sink.address.eq(img_counter),
+                writer.sink.data.eq(img_data[img_counter] << 24 | 0),
+                writer.sink.valid.eq(True),
+                img_counter.eq(img_counter + 1))
+            .Else(writer.sink.valid.eq(False)),
+        ]
 
 class Specific(Module):
-    def __init__(self, hub75_common, outputs_specific):
-        img = _get_indexed_image_arrays()
+    def __init__(self, hub75_common, outputs_specific, read_port, img):
         self.specials.img_memory = img_memory = Memory(width = 8, depth = len(img[0]), init = img[0])
         self.specials.img_port = img_port = img_memory.get_port()
         self.specials.r_palette_memory = r_palette_memory = Memory(width = 8, depth = len(img[1]), init = img[1])
         self.specials.g_palette_memory = g_palette_memory = Memory(width = 8, depth = len(img[2]), init = img[2])
         self.specials.b_palette_memory = b_palette_memory = Memory(width = 8, depth = len(img[3]), init = img[3])
-        self.specials.r_palette_wport = r_palette_wport = r_palette_memory.get_port(write_capable=True)
         r_pins = Array()
         g_pins = Array()
         b_pins = Array()
-        change_counter = Signal(max=60_000_000)
         for output in outputs_specific:
             r_pins.append(output.r0)
             r_pins.append(output.r1)
@@ -193,28 +217,17 @@ class Specific(Module):
             g_pins.append(output.g1)
             b_pins.append(output.b0)
             b_pins.append(output.b1)
-        # If it's not a seperate signal, there's breakage, somehow
-        # TODO Find out why
+
         palette_index = Signal(8)
         self.submodules.r_color = RowColorModule(r_pins,palette_index, hub75_common.bit, hub75_common.row.buffer_select, r_palette_memory, 8)
         self.submodules.g_color = RowColorModule(g_pins,palette_index, hub75_common.bit, hub75_common.row.buffer_select, g_palette_memory, 8)
         self.submodules.b_color = RowColorModule(b_pins,palette_index, hub75_common.bit, hub75_common.row.buffer_select, b_palette_memory, 8)
+
         self.sync += [
             If(hub75_common.row.counter_select == 0, img_port.adr.eq((hub75_common.row_select) * 64 + hub75_common.row.collumn))
             .Elif(hub75_common.row.counter_select == 1, img_port.adr.eq((hub75_common.row_select + 16) * 64 + hub75_common.row.collumn))
             .Elif(hub75_common.row.counter_select == 2, img_port.adr.eq((hub75_common.row_select + 32) * 64 + hub75_common.row.collumn))
             .Elif(hub75_common.row.counter_select == 3, img_port.adr.eq((hub75_common.row_select + 48) * 64 + hub75_common.row.collumn)),
-            change_counter.eq(change_counter - 1),
-            r_palette_wport.adr.eq(7),
-            If(change_counter == 0, change_counter.eq(60_000_000),
-                r_palette_wport.we.eq(True),
-                r_palette_wport.dat_w.eq(255),
-                )
-            .Elif(change_counter == 30_000_000,
-                r_palette_wport.we.eq(True),
-                r_palette_wport.dat_w.eq(0),)
-            .Else(
-                r_palette_wport.we.eq(False),),
         ]
         self.comb += [
             palette_index.eq(img_port.dat_r),

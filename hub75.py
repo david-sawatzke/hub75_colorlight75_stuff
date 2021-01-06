@@ -60,15 +60,12 @@ def _get_gamma_corr(bits_in=8, bits_out=8):
 
 class Common(Module):
     def __init__(
-        self, outputs_common, brightness_psc=1, collumns=64, brightness_bits=8
+        self, outputs_common, brightness_psc=1,  brightness_bits=8
     ):
-        self.collumns = collumns
-        start_shifting = Signal(1)
-        self.submodules.row_module = row_module = RowModule(
-            start_shifting, outputs_common.clk, collumns
-        )
-        self.row = row_module
+        self.start_shifting = start_shifting = Signal(1)
+        self.shifting_done = shifting_done = Signal(1)
         self.brightness_bits = brightness_bits
+        self.clk = outputs_common.clk
         counter_max = 8
 
         counter = Signal(max=counter_max)
@@ -86,7 +83,7 @@ class Common(Module):
             outputs_common.lat.eq(0),
             start_shifting.eq(0),
             If(
-                ((brightness_counter == 0) & row_module.shifting_done),
+                ((brightness_counter == 0) & shifting_done),
                 NextState("LATCH"),
             ),
         )
@@ -179,9 +176,12 @@ class RowModule(Module):
 
 
 class SpecificMemoryStuff(Module):
-    def __init__(self, hub75_common, outputs_specific, write_port, read_port):
+    def __init__(self, hub75_common, outputs_specific, write_port, read_port, collumns=64,):
         img = _get_indexed_image_arrays()
         self.clock_domains.cd_sout = ClockDomain()
+        self.submodules.row_module = hub75_common.row = row_module = ClockDomainsRenamer("sout")(RowModule(
+            hub75_common.start_shifting, hub75_common.clk, collumns
+        ))
         self.submodules.specific = ClockDomainsRenamer("sout")(
             Specific(hub75_common, outputs_specific, read_port, img)
         )
@@ -189,7 +189,8 @@ class SpecificMemoryStuff(Module):
         # TODO
         #         platform.add_period_constraint(self.cd_sout.clk, 1e9/60e6)
         clock_enable = Signal(reset=True)
-        self.comb += [self.cd_sout.clk.eq(clock_enable & ClockSignal("sys"))]
+        self.comb += [self.cd_sout.clk.eq(clock_enable & ClockSignal("sys")),
+                      hub75_common.shifting_done.eq(row_module.shifting_done)]
 
 
 # Should be replaced with cpu code in the future

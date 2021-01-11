@@ -147,7 +147,7 @@ class SpecificMemoryStuff(Module):
         running = Signal()
         self.comb += [
             # Eliminate the delay
-            hub75_common.shifting_done.eq(~(running | self.ram_adr.started)),
+            hub75_common.shifting_done.eq(~(running | hub75_common.start_shifting | self.ram_adr.started)),
         ]
 
         self.sync += [
@@ -185,14 +185,16 @@ class RamAddressModule(Module):
         self.collumn = Signal(max = collumns)
         self.adr = Signal(32)
         self.started = Signal(1)
+        self.start = Signal(1)
         self.comb += [
             self.counter_select.eq(self.counter & 0xF),
             self.collumn.eq(self.counter >> 4),
-            self.started.eq(start | (self.counter != 0))
+            self.started.eq(self.start | (self.counter != 0))
         ]
 
         self.sync += [
-            If((self.counter == 0) & (start == True) & (enable == True),
+            self.start.eq(start),
+            If((self.counter == 0) & (self.start == True) & (enable == True),
                 self.counter.eq(1),
             ).Elif((self.counter == (collumns * 16 - 1)) & (enable == True),
                 self.counter.eq(0)

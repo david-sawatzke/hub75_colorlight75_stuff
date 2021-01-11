@@ -140,7 +140,7 @@ class BaseSoC(SoCCore):
         revision,
         with_ethernet=False,
         with_etherbone=False,
-        sys_clk_freq=60e6,
+        sys_clk_freq=50e6,
         sdram_rate="1:1",
         **kwargs
     ):
@@ -168,7 +168,8 @@ class BaseSoC(SoCCore):
 
         hub75_common = hub75.Common(
             platform.request("hub75_common"),
-            brightness_psc=10,
+            # TODO Adjust later on
+            brightness_psc=15,
         )
         self.submodules.hub75_common = hub75_common
         pins = [platform.request("hub75_data", 1), platform.request("hub75_data", 2)]
@@ -234,7 +235,8 @@ def main():
         "--eth-phy", default=0, type=int, help="Ethernet PHY 0 or 1 (default=0)"
     )
     parser.add_argument(
-        "--sys-clk-freq", default=60e6, help="System clock frequency (default: 60MHz)"
+        # TODO raise it to 60e6 or whatever fits for ethernet
+        "--sys-clk-freq", default=40e6, help="System clock frequency (default: 50MHz)"
     )
     args = parser.parse_args()
 

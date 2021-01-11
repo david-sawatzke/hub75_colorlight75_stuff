@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 from migen import *
+from migen.genlib.fifo import SyncFIFO
 from litedram.frontend.dma import LiteDRAMDMAWriter
 import png
 
@@ -76,8 +77,14 @@ class Common(Module):
         row_shifting = Signal(4)
         self.row_select = row_shifting
         output_data = Signal()
-        fsm = FSM(reset_state="WAIT")
+        fsm = FSM(reset_state="RST")
         self.submodules.fsm = fsm
+        fsm.act(
+            "RST",
+            outputs_common.lat.eq(0),
+            start_shifting.eq(1),
+            NextState("WAIT"),
+        )
         fsm.act(
             "WAIT",
             outputs_common.lat.eq(0),
@@ -121,15 +128,111 @@ class Common(Module):
             outputs_common.row.eq(row_active),
         ]
 
+class SpecificMemoryStuff(Module):
+    def __init__(self, hub75_common, outputs_specific, write_port, read_port, collumns=64,):
+        img = _get_indexed_image_arrays()
+        self.specials.img_memory = img_memory = Memory(
+            width=8, depth=len(img[0]), init=img[0]
+        )
+        self.specials.img_port = img_port = img_memory.get_port()
+        clock_enable = Signal(reset=True)
+        # Ram-Reader standin
+        self.submodules.fifo = SyncFIFO(32, 8)
+        # self.submodules.ram_initializer = RamInitializer(write_port, img)
+        self.submodules.ram_adr = RamAddressModule(hub75_common.start_shifting, self.fifo.writable, hub75_common.row_select, collumns)
+        self.submodules.row_module = hub75_common.row = row_module = RowModule(
+            self.ram_adr.started, clock_enable, hub75_common.clk, collumns
+        )
+        self.submodules.specific = Specific(hub75_common, outputs_specific, clock_enable, img_port.dat_r, img)
+        running = Signal()
+        self.comb += [
+            # Eliminate the delay
+            hub75_common.shifting_done.eq(~(running | self.ram_adr.started)),
+        ]
+
+        self.sync += [
+            self.fifo.din.eq(self.ram_adr.adr),
+            self.fifo.we.eq(self.ram_adr.started),
+            img_port.adr.eq(self.fifo.dout),
+            If(self.fifo.readable == True,
+                clock_enable.eq(True),
+                self.fifo.re.eq(True),
+            ).Elif(
+                (self.ram_adr.started == False) & (running == True) & (self.fifo.level == 0),
+                clock_enable.eq(True),
+                self.fifo.re.eq(False),
+            ).Else(
+                clock_enable.eq(False),
+                self.fifo.re.eq(False),
+            ),
+            If(self.ram_adr.started == True,
+               running.eq(True),
+            ).Elif(self.row_module.shifting_done == True,
+               running.eq(False),
+            ),
+        ]
+
+class RamAddressModule(Module):
+    def __init__(
+        self,
+        start: Signal(1),
+        enable: Signal(1),
+        row: Signal(4),
+        collumns: int = 64,
+    ):
+        self.counter = Signal(max = collumns * 16)
+        self.counter_select = Signal(max = 16)
+        self.collumn = Signal(max = collumns)
+        self.adr = Signal(32)
+        self.started = Signal(1)
+        self.comb += [
+            self.counter_select.eq(self.counter & 0xF),
+            self.collumn.eq(self.counter >> 4),
+            self.started.eq(start | (self.counter != 0))
+        ]
+
+        self.sync += [
+            If((self.counter == 0) & (start == True) & (enable == True),
+                self.counter.eq(1),
+            ).Elif((self.counter == (collumns * 16 - 1)) & (enable == True),
+                self.counter.eq(0)
+            ).Elif((self.counter > 0) & (enable == True),
+                self.counter.eq(self.counter + 1)
+            ),
+            If(
+                enable == False
+            ).Elif(
+                self.counter_select == 0,
+                self.adr.eq(
+                    (row) * 64 + self.collumn
+                ),
+            ).Elif(
+                self.counter_select == 1,
+                self.adr.eq(
+                    (row + 16) * 64 + self.collumn
+                ),
+            ).Elif(
+                self.counter_select == 2,
+                self.adr.eq(
+                    (row + 32) * 64 + self.collumn
+                ),
+            ).Elif(
+                self.counter_select == 3,
+                self.adr.eq(
+                    (row + 48) * 64 + self.collumn
+                ),
+            ),
+        ]
 
 class RowModule(Module):
     def __init__(
         self,
-        start_shifting: Signal(1),
+        start: Signal(1),
+        enable: Signal(1),
         clk: Signal(1),
         collumns: int = 64,
     ):
-        pipeline_delay = 4
+        pipeline_delay = 7
         output_delay = 16
         delay = pipeline_delay + output_delay
         counter_max = collumns * 16 + delay
@@ -146,6 +249,7 @@ class RowModule(Module):
         self.shifting_done = shifting_done
         self.buffer_select = buffer_select
         self.counter_select = counter_select
+        self.test = Signal()
         self.comb += [
             If(counter < delay, output_counter.eq(0)).Else(
                 output_counter.eq(counter - delay)
@@ -158,39 +262,24 @@ class RowModule(Module):
             buffer_select.eq(buffer_counter & 0xF),
             counter_select.eq(counter & 0xF),
             output_collumn.eq(output_counter >> 4),
-            If(counter < counter_max - delay, collumn.eq(counter >> 4),).Else(
+            If(counter < counter_max - delay, collumn.eq(counter >> 4)).Else(
                 collumn.eq(0),
             ),
         ]
 
         self.sync += [
-            If(counter != (counter_max - 1), counter.eq(counter + 1)),
-            If(
-                (counter == (counter_max - 1)) & (start_shifting == 1),
+            If((counter == 0) & (start == True) & (enable == True),
+                counter.eq(1),
+            ).Elif((counter == (counter_max - 1)) & enable,
                 counter.eq(0),
+            ).Elif(enable & (counter > 0), counter.eq(counter + 1)
             ),
-            If(counter == (counter_max - 1), shifting_done.eq(1)).Else(
+            If(counter == (counter_max - 1),
+               shifting_done.eq(1)
+            ).Else(
                 shifting_done.eq(0)
             ),
         ]
-
-
-class SpecificMemoryStuff(Module):
-    def __init__(self, hub75_common, outputs_specific, write_port, read_port, collumns=64,):
-        img = _get_indexed_image_arrays()
-        self.clock_domains.cd_sout = ClockDomain()
-        self.submodules.row_module = hub75_common.row = row_module = ClockDomainsRenamer("sout")(RowModule(
-            hub75_common.start_shifting, hub75_common.clk, collumns
-        ))
-        self.submodules.specific = ClockDomainsRenamer("sout")(
-            Specific(hub75_common, outputs_specific, read_port, img)
-        )
-        self.submodules.ram_initializer = RamInitializer(write_port, img)
-        # TODO
-        #         platform.add_period_constraint(self.cd_sout.clk, 1e9/60e6)
-        clock_enable = Signal(reset=True)
-        self.comb += [self.cd_sout.clk.eq(clock_enable & ClockSignal("sys")),
-                      hub75_common.shifting_done.eq(row_module.shifting_done)]
 
 
 # Should be replaced with cpu code in the future
@@ -211,11 +300,7 @@ class RamInitializer(Module):
 
 
 class Specific(Module):
-    def __init__(self, hub75_common, outputs_specific, read_port, img):
-        self.specials.img_memory = img_memory = Memory(
-            width=8, depth=len(img[0]), init=img[0]
-        )
-        self.specials.img_port = img_port = img_memory.get_port()
+    def __init__(self, hub75_common, outputs_specific, enable, img_data, img):
         self.specials.r_palette_memory = r_palette_memory = Memory(
             width=8, depth=len(img[1]), init=img[1]
         )
@@ -238,6 +323,7 @@ class Specific(Module):
 
         palette_index = Signal(8)
         self.submodules.r_color = RowColorModule(
+            enable,
             r_pins,
             palette_index,
             hub75_common.bit,
@@ -246,6 +332,7 @@ class Specific(Module):
             8,
         )
         self.submodules.g_color = RowColorModule(
+            enable,
             g_pins,
             palette_index,
             hub75_common.bit,
@@ -254,6 +341,7 @@ class Specific(Module):
             8,
         )
         self.submodules.b_color = RowColorModule(
+            enable,
             b_pins,
             palette_index,
             hub75_common.bit,
@@ -263,39 +351,16 @@ class Specific(Module):
         )
 
         self.sync += [
-            If(
-                hub75_common.row.counter_select == 0,
-                img_port.adr.eq(
-                    (hub75_common.row_select) * 64 + hub75_common.row.collumn
-                ),
+            If(enable,
+                palette_index.eq(img_data),
             )
-            .Elif(
-                hub75_common.row.counter_select == 1,
-                img_port.adr.eq(
-                    (hub75_common.row_select + 16) * 64 + hub75_common.row.collumn
-                ),
-            )
-            .Elif(
-                hub75_common.row.counter_select == 2,
-                img_port.adr.eq(
-                    (hub75_common.row_select + 32) * 64 + hub75_common.row.collumn
-                ),
-            )
-            .Elif(
-                hub75_common.row.counter_select == 3,
-                img_port.adr.eq(
-                    (hub75_common.row_select + 48) * 64 + hub75_common.row.collumn
-                ),
-            ),
-        ]
-        self.comb += [
-            palette_index.eq(img_port.dat_r),
         ]
 
 
 class RowColorModule(Module):
     def __init__(
         self,
+        enable: Signal(1),
         outputs: Array(Signal(1)),
         indexed_input: Signal(8),
         bit: Signal(3),
@@ -310,27 +375,27 @@ class RowColorModule(Module):
 
         self.specials.palette_port = palette_port = palette.get_port()
         self.submodules.gamma = gamma = GammaCorrection(
-            palette_port.dat_r, out_bits, bit
+            enable, palette_port.dat_r, out_bits, bit
         )
-
         self.sync += [
-            outputs_buffer[buffer_select].eq(gamma.out_bit),
+            If(enable,
+                outputs_buffer[buffer_select].eq(gamma.out_bit),
+                palette_port.adr.eq(indexed_input),
+            ),
         ]
 
-        self.comb += [palette_port.adr.eq(indexed_input)]
-
         for i in range(16):
-            self.sync += [If(buffer_select == 0, outputs[i].eq(outputs_buffer[i]))]
+            self.sync += [If((buffer_select == 0) & enable, outputs[i].eq(outputs_buffer[i]))]
 
 
 #
 # 1 cycle delay
 class GammaCorrection(Module):
-    def __init__(self, value, out_bits, bit):
+    def __init__(self, enable, value, out_bits, bit):
         self.out_bit = Signal()
         gamma_lut = _get_gamma_corr(bits_out=out_bits)
         bit_mask = 1 << bit
-        self.sync += [self.out_bit.eq((gamma_lut[value] & bit_mask) != 0)]
+        self.sync += [If(enable, self.out_bit.eq((gamma_lut[value] & bit_mask) != 0))]
 
 
 class _TestPads(Module):
@@ -361,8 +426,8 @@ class _TestModule(Module):
     def __init__(
         self, out_freq, sys_clk_freq, outputs_common, outputs_specific, collumns
     ):
-        hub75_common = Common(outputs_common, collumns)
-        hub75_specific = Specific(hub75_common, [outputs_specific])
+        hub75_common = Common(outputs_common, brightness_psc=15)
+        hub75_specific = SpecificMemoryStuff(hub75_common, [outputs_specific], None, None, collumns = collumns)
         self.submodules.common = hub75_common
         self.submodules.specific = hub75_specific
 
@@ -372,4 +437,5 @@ if __name__ == "__main__":
     collumns = 64
     dut = _TestModule(1, 4, pads, pads, collumns)
     dut.clock_domains.cd_sys = ClockDomain("sys")
+    # work around
     run_simulation(dut, _test(pads, dut, collumns), vcd_name="output_test.vcd")

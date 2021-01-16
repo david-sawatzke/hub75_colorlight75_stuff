@@ -146,6 +146,11 @@ class BaseSoC(SoCCore):
     ):
         platform = colorlight_5a_75b.Platform(revision=revision)
 
+        # TODO Remove this
+        # Reduce memtest size to avoid walking over image data
+        self.add_constant("MEMTEST_DATA_SIZE", 0)
+        self.add_constant("MEMTEST_ADDR_SIZE", 0)
+
         # SoCCore ----------------------------------------------------------------------------------
         SoCCore.__init__(
             self,

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 from migen import *
 from migen.genlib.fifo import SyncFIFO
-from litedram.frontend.dma import LiteDRAMDMAWriter
+from litedram.frontend.dma import LiteDRAMDMAWriter,LiteDRAMDMAReader
 import png
 
 
@@ -131,19 +131,15 @@ class Common(Module):
 class SpecificMemoryStuff(Module):
     def __init__(self, hub75_common, outputs_specific, write_port, read_port, collumns=64,):
         img = _get_indexed_image_arrays()
-        self.specials.img_memory = img_memory = Memory(
-            width=8, depth=len(img[0]), init=img[0]
-        )
-        self.specials.img_port = img_port = img_memory.get_port()
         clock_enable = Signal(reset=True)
-        # Ram-Reader standin
-        self.submodules.fifo = SyncFIFO(32, 8)
-        # self.submodules.ram_initializer = RamInitializer(write_port, img)
-        self.submodules.ram_adr = RamAddressModule(hub75_common.start_shifting, self.fifo.writable, hub75_common.row_select, collumns)
+        self.submodules.ram_initializer = RamInitializer(write_port, img)
+        self.submodules.reader = LiteDRAMDMAReader(read_port)
+        self.submodules.ram_adr = RamAddressModule(hub75_common.start_shifting, self.reader.sink.ready, hub75_common.row_select, collumns)
         self.submodules.row_module = hub75_common.row = row_module = RowModule(
             self.ram_adr.started, clock_enable, hub75_common.clk, collumns
         )
-        self.submodules.specific = Specific(hub75_common, outputs_specific, clock_enable, img_port.dat_r, img)
+        data = Signal(32)
+        self.submodules.specific = Specific(hub75_common, outputs_specific, clock_enable, data, img)
         running = Signal()
         self.comb += [
             # Eliminate the delay
@@ -151,19 +147,19 @@ class SpecificMemoryStuff(Module):
         ]
 
         self.sync += [
-            self.fifo.din.eq(self.ram_adr.adr),
-            self.fifo.we.eq(self.ram_adr.started),
-            img_port.adr.eq(self.fifo.dout),
-            If(self.fifo.readable == True,
+            self.reader.sink.address.eq(self.ram_adr.adr),
+            self.reader.sink.valid.eq(self.ram_adr.started),
+            If(self.reader.source.valid == True,
                 clock_enable.eq(True),
-                self.fifo.re.eq(True),
+                self.reader.source.ready.eq(True),
+                data.eq(self.reader.source.data),
             ).Elif(
-                (self.ram_adr.started == False) & (running == True) & (self.fifo.level == 0),
+                (self.ram_adr.started == False) & (running == True) & (self.reader.rsv_level == 0),
                 clock_enable.eq(True),
-                self.fifo.re.eq(False),
+                self.reader.source.ready.eq(False),
             ).Else(
                 clock_enable.eq(False),
-                self.fifo.re.eq(False),
+                self.reader.source.ready.eq(True),
             ),
             If(self.ram_adr.started == True,
                running.eq(True),
@@ -193,9 +189,12 @@ class RamAddressModule(Module):
         ]
 
         self.sync += [
-            self.start.eq(start),
+            If(start,
+                self.start.eq(True),
+            ),
             If((self.counter == 0) & (self.start == True) & (enable == True),
                 self.counter.eq(1),
+                self.start.eq(False),
             ).Elif((self.counter == (collumns * 16 - 1)) & (enable == True),
                 self.counter.eq(0)
             ).Elif((self.counter > 0) & (enable == True),
@@ -234,7 +233,7 @@ class RowModule(Module):
         clk: Signal(1),
         collumns: int = 64,
     ):
-        pipeline_delay = 7
+        pipeline_delay = 6
         output_delay = 16
         delay = pipeline_delay + output_delay
         counter_max = collumns * 16 + delay
@@ -289,14 +288,17 @@ class RamInitializer(Module):
     def __init__(self, write_port, img):
         img_data = Array(img[0])
         img_counter = Signal(max=len(img_data) + 1)
-        self.submodules.writer = writer = LiteDRAMDMAWriter(write_port, 16, True)
+        self.submodules.writer = writer = LiteDRAMDMAWriter(write_port)
+        # FIXME: Final adress might not be written properly
         self.sync += [
             If(
-                (img_counter != len(img_data)) & (writer.sink.ready == True),
-                writer.sink.address.eq(img_counter),
-                writer.sink.data.eq(img_data[img_counter] << 24 | 0),
+                img_counter != len(img_data),
                 writer.sink.valid.eq(True),
-                img_counter.eq(img_counter + 1),
+                If((writer.sink.ready == True) | (img_counter == 0),
+                    img_counter.eq(img_counter + 1),
+                    writer.sink.address.eq(img_counter),
+                    writer.sink.data.eq(img_data[img_counter]),# << 24 | 0),
+                ),
             ).Else(writer.sink.valid.eq(False)),
         ]
 
@@ -375,15 +377,21 @@ class RowColorModule(Module):
 
         outputs_buffer = Array((Signal()) for x in range(16))
 
+        prev_enable = Signal(1)
+        value = Signal(out_bits)
         self.specials.palette_port = palette_port = palette.get_port()
         self.submodules.gamma = gamma = GammaCorrection(
-            enable, palette_port.dat_r, out_bits, bit
+            enable, value, out_bits, bit
         )
         self.sync += [
             If(enable,
                 outputs_buffer[buffer_select].eq(gamma.out_bit),
                 palette_port.adr.eq(indexed_input),
             ),
+            prev_enable.eq(enable),
+            If(prev_enable,
+               value.eq(palette_port.dat_r),
+            )
         ]
 
         for i in range(16):
@@ -414,22 +422,20 @@ class _TestPads(Module):
         self.row = Signal(5)
 
 
-def _test_row(pads, dut, row, cols):
-    for i in range(((cols * 2 + 4) * 2) * 8):
+
+def _test():
+    for i in range(16 * 64 * 8 * 16):
         yield
-
-
-def _test(pads, dut, cols):
-    for i in range(16):
-        yield from _test_row(pads, dut, i, cols)
 
 
 class _TestModule(Module):
     def __init__(
         self, out_freq, sys_clk_freq, outputs_common, outputs_specific, collumns
     ):
+        self.read_port = LiteDRAMNativeReadPort(address_width = 32, data_width=32)
+        self.write_port = LiteDRAMNativeWritePort(address_width = 32, data_width=32)
         hub75_common = Common(outputs_common, brightness_psc=15)
-        hub75_specific = SpecificMemoryStuff(hub75_common, [outputs_specific], None, None, collumns = collumns)
+        hub75_specific = SpecificMemoryStuff(hub75_common, [outputs_specific], self.write_port, self.read_port, collumns = collumns)
         self.submodules.common = hub75_common
         self.submodules.specific = hub75_specific
 

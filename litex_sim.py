@@ -41,6 +41,9 @@ from liteeth.common import *
 
 from litescope import LiteScopeAnalyzer
 
+import hub75
+import helper
+
 # IOs ----------------------------------------------------------------------------------------------
 
 _io = [
@@ -72,6 +75,77 @@ _io = [
         Subsignal("scl",     Pins(1)),
         Subsignal("sda_out", Pins(1)),
         Subsignal("sda_in",  Pins(1)),
+    ),
+    # Colorlite-specific
+    ("hub75_data", 0,
+        Subsignal("r0", Pins(1)),
+        Subsignal("g0", Pins(1)),
+        Subsignal("b0", Pins(1)),
+        Subsignal("r1", Pins(1)),
+        Subsignal("g1", Pins(1)),
+        Subsignal("b1", Pins(1)),
+    ),
+    ("hub75_data", 1,
+        Subsignal("r0", Pins(1)),
+        Subsignal("g0", Pins(1)),
+        Subsignal("b0", Pins(1)),
+        Subsignal("r1", Pins(1)),
+        Subsignal("g1", Pins(1)),
+        Subsignal("b1", Pins(1)),
+    ),
+    ("hub75_data", 2,
+        Subsignal("r0", Pins(1)),
+        Subsignal("g0", Pins(1)),
+        Subsignal("b0", Pins(1)),
+        Subsignal("r1", Pins(1)),
+        Subsignal("g1", Pins(1)),
+        Subsignal("b1", Pins(1)),
+    ),
+    ("hub75_data", 3,
+        Subsignal("r0", Pins(1)),
+        Subsignal("g0", Pins(1)),
+        Subsignal("b0", Pins(1)),
+        Subsignal("r1", Pins(1)),
+        Subsignal("g1", Pins(1)),
+        Subsignal("b1", Pins(1)),
+    ),
+    ("hub75_data", 4,
+        Subsignal("r0", Pins(1)),
+        Subsignal("g0", Pins(1)),
+        Subsignal("b0", Pins(1)),
+        Subsignal("r1", Pins(1)),
+        Subsignal("g1", Pins(1)),
+        Subsignal("b1", Pins(1)),
+    ),
+    ("hub75_data", 5,
+        Subsignal("r0", Pins(1)),
+        Subsignal("g0", Pins(1)),
+        Subsignal("b0", Pins(1)),
+        Subsignal("r1", Pins(1)),
+        Subsignal("g1", Pins(1)),
+        Subsignal("b1", Pins(1)),
+    ),
+    ("hub75_data", 6,
+        Subsignal("r0", Pins(1)),
+        Subsignal("g0", Pins(1)),
+        Subsignal("b0", Pins(1)),
+        Subsignal("r1", Pins(1)),
+        Subsignal("g1", Pins(1)),
+        Subsignal("b1", Pins(1)),
+    ),
+    ("hub75_data", 7,
+        Subsignal("r0", Pins(1)),
+        Subsignal("g0", Pins(1)),
+        Subsignal("b0", Pins(1)),
+        Subsignal("r1", Pins(1)),
+        Subsignal("g1", Pins(1)),
+        Subsignal("b1", Pins(1)),
+    ),
+    ("hub75_common", 0,
+        Subsignal("row", Pins(4)),
+        Subsignal("clk", Pins(1)),
+        Subsignal("lat", Pins(1)),
+        Subsignal("oe", Pins(1)),
     ),
 ]
 
@@ -159,7 +233,6 @@ class SimSoC(SoCCore):
     mem_map.update(SoCCore.mem_map)
 
     def __init__(self,
-        with_sdram            = False,
         with_ethernet         = False,
         with_etherbone        = False,
         etherbone_mac_address = 0x10e2d5000001,
@@ -188,36 +261,49 @@ class SimSoC(SoCCore):
         self.submodules.crg = CRG(platform.request("sys_clk"))
 
         # SDRAM ------------------------------------------------------------------------------------
-        if with_sdram:
-            sdram_clk_freq = int(100e6) # FIXME: use 100MHz timings
-            if sdram_spd_data is None:
-                sdram_module_cls = getattr(litedram_modules, sdram_module)
-                sdram_rate       = "1:{}".format(sdram_module_nphases[sdram_module_cls.memtype])
-                sdram_module     = sdram_module_cls(sdram_clk_freq, sdram_rate)
-            else:
-                sdram_module = litedram_modules.SDRAMModule.from_spd_data(sdram_spd_data, sdram_clk_freq)
-            phy_settings     = get_sdram_phy_settings(
-                memtype    = sdram_module.memtype,
-                data_width = sdram_data_width,
-                clk_freq   = sdram_clk_freq)
-            self.submodules.sdrphy = SDRAMPHYModel(
-                module    = sdram_module,
-                settings  = phy_settings,
-                clk_freq  = sdram_clk_freq,
-                verbosity = sdram_verbosity,
-                init      = sdram_init)
-            self.add_sdram("sdram",
-                phy                     = self.sdrphy,
-                module                  = sdram_module,
-                origin                  = self.mem_map["main_ram"],
-                size                    = kwargs.get("max_sdram_size", 0x40000000),
-                l2_cache_size           = kwargs.get("l2_size", 8192),
-                l2_cache_min_data_width = kwargs.get("min_l2_data_width", 128),
-                l2_cache_reverse        = False
-            )
-            # Reduce memtest size for simulation speedup
-            self.add_constant("MEMTEST_DATA_SIZE", 8*1024)
-            self.add_constant("MEMTEST_ADDR_SIZE", 8*1024)
+        sdram_clk_freq = int(100e6) # FIXME: use 100MHz timings
+        if sdram_spd_data is None:
+            sdram_module_cls = getattr(litedram_modules, sdram_module)
+            sdram_rate       = "1:{}".format(sdram_module_nphases[sdram_module_cls.memtype])
+            sdram_module     = sdram_module_cls(sdram_clk_freq, sdram_rate)
+        else:
+            sdram_module = litedram_modules.SDRAMModule.from_spd_data(sdram_spd_data, sdram_clk_freq)
+        phy_settings     = get_sdram_phy_settings(
+            memtype    = sdram_module.memtype,
+            data_width = sdram_data_width,
+            clk_freq   = sdram_clk_freq)
+        self.submodules.sdrphy = SDRAMPHYModel(
+            module    = sdram_module,
+            settings  = phy_settings,
+            clk_freq  = sdram_clk_freq,
+            verbosity = sdram_verbosity,
+            init      = sdram_init)
+        self.add_sdram("sdram",
+            phy                     = self.sdrphy,
+            module                  = sdram_module,
+            origin                  = self.mem_map["main_ram"],
+            size                    = kwargs.get("max_sdram_size", 0x40000000),
+            l2_cache_size           = kwargs.get("l2_size", 8192),
+            l2_cache_min_data_width = kwargs.get("min_l2_data_width", 128),
+            l2_cache_reverse        = True
+        )
+        # Reduce memtest size for simulation speedup
+        self.add_constant("MEMTEST_DATA_SIZE", 0)
+        self.add_constant("MEMTEST_ADDR_SIZE", 0)
+
+        # Add hub75 connectors
+        write_port = self.sdram.crossbar.get_port(mode="write", data_width=32)
+        read_port = self.sdram.crossbar.get_port(mode="read", data_width=32)
+
+        self.submodules.hub75_common = hub75.Common(
+            platform.request("hub75_common"),
+            # TODO Adjust later on
+            brightness_psc=15,
+        )
+        pins = [platform.request("hub75_data", 1), platform.request("hub75_data", 2)]
+        self.submodules.hub75_specific1 = hub75.SpecificMemoryStuff(
+            self.hub75_common, pins, write_port, read_port
+        )
 
         #assert not (with_ethernet and with_etherbone)
 
@@ -332,8 +418,7 @@ def sim_args(parser):
     parser.add_argument("--threads",              default=1,               help="Set number of threads (default=1)")
     parser.add_argument("--rom-init",             default=None,            help="rom_init file")
     parser.add_argument("--ram-init",             default=None,            help="ram_init file")
-    parser.add_argument("--with-sdram",           action="store_true",     help="Enable SDRAM support")
-    parser.add_argument("--sdram-module",         default="MT48LC16M16",   help="Select SDRAM chip")
+    parser.add_argument("--sdram-module",         default="M12L16161A",    help="Select SDRAM chip")
     parser.add_argument("--sdram-data-width",     default=32,              help="Set SDRAM chip data width")
     parser.add_argument("--sdram-init",           default=None,            help="SDRAM init file")
     parser.add_argument("--sdram-from-spd-dump",  default=None,            help="Generate SDRAM module based on data from SPD EEPROM dump")
@@ -360,7 +445,7 @@ def main():
     soc_kwargs     = soc_sdram_argdict(args)
     builder_kwargs = builder_argdict(args)
 
-    sys_clk_freq = int(1e6)
+    sys_clk_freq = int(50e6)
     sim_config = SimConfig()
     sim_config.add_clocker("sys_clk", freq_hz=sys_clk_freq)
 
@@ -372,18 +457,18 @@ def main():
         sim_config.add_module("serial2console", "serial")
     if args.rom_init:
         soc_kwargs["integrated_rom_init"] = get_mem_data(args.rom_init, cpu.endianness)
-    if not args.with_sdram:
-        soc_kwargs["integrated_main_ram_size"] = 0x10000000 # 256 MB
-        if args.ram_init is not None:
-            soc_kwargs["integrated_main_ram_init"] = get_mem_data(args.ram_init, cpu.endianness)
-    else:
-        assert args.ram_init is None
-        soc_kwargs["integrated_main_ram_size"] = 0x0
-        soc_kwargs["sdram_module"]             = args.sdram_module
-        soc_kwargs["sdram_data_width"]         = int(args.sdram_data_width)
-        soc_kwargs["sdram_verbosity"]          = int(args.sdram_verbosity)
-        if args.sdram_from_spd_dump:
-            soc_kwargs["sdram_spd_data"] = parse_spd_hexdump(args.sdram_from_spd_dump)
+    # if not args.with_sdram:
+    #     soc_kwargs["integrated_main_ram_size"] = 0x10000000 # 256 MB
+    #     if args.ram_init is not None:
+    #         soc_kwargs["integrated_main_ram_init"] = get_mem_data(args.ram_init, cpu.endianness)
+    # else:
+    assert args.ram_init is None
+    soc_kwargs["integrated_main_ram_size"] = 0x0
+    soc_kwargs["sdram_module"]             = args.sdram_module
+    soc_kwargs["sdram_data_width"]         = int(args.sdram_data_width)
+    soc_kwargs["sdram_verbosity"]          = int(args.sdram_verbosity)
+    if args.sdram_from_spd_dump:
+        soc_kwargs["sdram_spd_data"] = parse_spd_hexdump(args.sdram_from_spd_dump)
 
     if args.with_ethernet or args.with_etherbone:
         sim_config.add_module("ethernet", "eth", args={"interface": "tap0", "ip": args.remote_ip})
@@ -396,7 +481,6 @@ def main():
 
     # SoC ------------------------------------------------------------------------------------------
     soc = SimSoC(
-        with_sdram     = args.with_sdram,
         with_ethernet  = args.with_ethernet,
         with_etherbone = args.with_etherbone,
         with_analyzer  = args.with_analyzer,

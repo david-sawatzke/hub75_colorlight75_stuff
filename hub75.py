@@ -144,11 +144,11 @@ class SpecificMemoryStuff(Module):
         self.comb += [
             # Eliminate the delay
             hub75_common.shifting_done.eq(~(running | hub75_common.start_shifting | self.ram_adr.started)),
+            self.reader.sink.address.eq(self.ram_adr.adr),
+            self.reader.sink.valid.eq(self.ram_adr.started),
         ]
 
         self.sync += [
-            self.reader.sink.address.eq(self.ram_adr.adr),
-            self.reader.sink.valid.eq(self.ram_adr.started),
             If(self.reader.source.valid == True,
                 clock_enable.eq(True),
                 self.reader.source.ready.eq(True),
@@ -233,7 +233,7 @@ class RowModule(Module):
         clk: Signal(1),
         collumns: int = 64,
     ):
-        pipeline_delay = 6
+        pipeline_delay = 5
         output_delay = 16
         delay = pipeline_delay + output_delay
         counter_max = collumns * 16 + delay
@@ -377,21 +377,19 @@ class RowColorModule(Module):
 
         outputs_buffer = Array((Signal()) for x in range(16))
 
-        prev_enable = Signal(1)
-        value = Signal(out_bits)
-        self.specials.palette_port = palette_port = palette.get_port()
+        self.specials.palette_port = palette_port = palette.get_port(has_re = True)
         self.submodules.gamma = gamma = GammaCorrection(
-            enable, value, out_bits, bit
+            enable, palette_port.dat_r, out_bits, bit
         )
+
+        self.comb += [
+            palette_port.re.eq(enable),
+        ]
         self.sync += [
             If(enable,
                 outputs_buffer[buffer_select].eq(gamma.out_bit),
                 palette_port.adr.eq(indexed_input),
             ),
-            prev_enable.eq(enable),
-            If(prev_enable,
-               value.eq(palette_port.dat_r),
-            )
         ]
 
         for i in range(16):

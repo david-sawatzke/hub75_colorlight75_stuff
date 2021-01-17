@@ -261,7 +261,7 @@ class SimSoC(SoCCore):
         self.submodules.crg = CRG(platform.request("sys_clk"))
 
         # SDRAM ------------------------------------------------------------------------------------
-        sdram_clk_freq = int(100e6) # FIXME: use 100MHz timings
+        sdram_clk_freq = int(50e6) # FIXME: use 100MHz timings
         if sdram_spd_data is None:
             sdram_module_cls = getattr(litedram_modules, sdram_module)
             sdram_rate       = "1:{}".format(sdram_module_nphases[sdram_module_cls.memtype])

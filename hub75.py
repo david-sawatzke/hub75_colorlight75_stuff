@@ -201,22 +201,22 @@ class RamAddressModule(Module):
             ).Elif(
                 self.counter_select == 0,
                 self.adr.eq(
-                    (row) * 64 + self.collumn
+                    (row) * collumns + self.collumn
                 ),
             ).Elif(
                 self.counter_select == 1,
                 self.adr.eq(
-                    (row + 16) * 64 + self.collumn
+                    (row + 16) * collumns + self.collumn
                 ),
             ).Elif(
                 self.counter_select == 2,
                 self.adr.eq(
-                    (row + 32) * 64 + self.collumn
+                    (row + 32) * collumns + self.collumn
                 ),
             ).Elif(
                 self.counter_select == 3,
                 self.adr.eq(
-                    (row + 48) * 64 + self.collumn
+                    (row + 48) * collumns + self.collumn
                 ),
             ),
         ]

@@ -37,16 +37,12 @@ def _get_indexed_image_arrays():
             out_array.append(arr[i])
     # Get palette data
     # rgbrgbrgb
-    r_palette = []
-    g_palette = []
-    b_palette = []
+    palette = []
     # Probably rgb?
     png_palette = img[3]["palette"]
     for a in png_palette:
-        r_palette.append(a[0])
-        g_palette.append(a[1])
-        b_palette.append(a[2])
-    return (out_array, r_palette, g_palette, b_palette)
+        palette.append(a[0] | a[1] << 8 | a[2] << 16)
+    return (out_array, palette)
 
 
 def _get_gamma_corr(bits_in=8, bits_out=8):
@@ -233,7 +229,7 @@ class RowModule(Module):
         clk: Signal(1),
         collumns: int = 64,
     ):
-        pipeline_delay = 5
+        pipeline_delay = 4
         output_delay = 16
         delay = pipeline_delay + output_delay
         counter_max = collumns * 16 + delay
@@ -305,15 +301,11 @@ class RamInitializer(Module):
 
 class Specific(Module):
     def __init__(self, hub75_common, outputs_specific, enable, img_data, img):
-        self.specials.r_palette_memory = r_palette_memory = Memory(
-            width=8, depth=len(img[1]), init=img[1]
+        self.specials.palette_memory = palette_memory = Memory(
+            width=24, depth=len(img[1]), init=img[1]
         )
-        self.specials.g_palette_memory = g_palette_memory = Memory(
-            width=8, depth=len(img[2]), init=img[2]
-        )
-        self.specials.b_palette_memory = b_palette_memory = Memory(
-            width=8, depth=len(img[3]), init=img[3]
-        )
+        rgb_color = Signal(24)
+        self.specials.palette_port = palette_port = palette_memory.get_port(has_re = True)
         r_pins = Array()
         g_pins = Array()
         b_pins = Array()
@@ -325,38 +317,42 @@ class Specific(Module):
             b_pins.append(output.b0)
             b_pins.append(output.b1)
 
-        palette_index = Signal(8)
         self.submodules.r_color = RowColorModule(
             enable,
             r_pins,
-            palette_index,
             hub75_common.bit,
             hub75_common.row.buffer_select,
-            r_palette_memory,
+            rgb_color,
+            0,
             8,
         )
         self.submodules.g_color = RowColorModule(
             enable,
             g_pins,
-            palette_index,
             hub75_common.bit,
             hub75_common.row.buffer_select,
-            g_palette_memory,
+            rgb_color,
+            8,
             8,
         )
         self.submodules.b_color = RowColorModule(
             enable,
             b_pins,
-            palette_index,
             hub75_common.bit,
             hub75_common.row.buffer_select,
-            b_palette_memory,
+            rgb_color,
+            16,
             8,
         )
 
+        self.comb += [
+            palette_port.re.eq(enable),
+            rgb_color.eq(palette_port.dat_r),
+        ]
+
         self.sync += [
             If(enable,
-                palette_index.eq(img_data),
+                palette_port.adr.eq(img_data),
             )
         ]
 
@@ -366,10 +362,10 @@ class RowColorModule(Module):
         self,
         enable: Signal(1),
         outputs: Array(Signal(1)),
-        indexed_input: Signal(8),
         bit: Signal(3),
         buffer_select: Signal(4),
-        palette,  # The memory port, width = 8, depth = 255
+        rgb_input: Signal(24),
+        color_offset: int,
         out_bits: int = 8,
     ):
         while len(outputs) < 16:
@@ -377,18 +373,13 @@ class RowColorModule(Module):
 
         outputs_buffer = Array((Signal()) for x in range(16))
 
-        self.specials.palette_port = palette_port = palette.get_port(has_re = True)
         self.submodules.gamma = gamma = GammaCorrection(
-            enable, palette_port.dat_r, out_bits, bit
+            enable, (rgb_input >> color_offset) & 0xFF, out_bits, bit
         )
 
-        self.comb += [
-            palette_port.re.eq(enable),
-        ]
         self.sync += [
             If(enable,
                 outputs_buffer[buffer_select].eq(gamma.out_bit),
-                palette_port.adr.eq(indexed_input),
             ),
         ]
 

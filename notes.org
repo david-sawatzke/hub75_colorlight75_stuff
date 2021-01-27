@@ -46,7 +46,21 @@ least for direct mode) can't, since we don't have dual port ram
 
 Just buffer the data and write it, when the longest OE is set, which we *should*
 make long enough, so that there's enough time without shifting
+
+The pipeline is flushed while the data is being latched
 * Memory layout
 Since we always read 4 bytes, just use the upper byte for the indexed image
 ander the lower 3 bytes for rgb -> rgbi
 We can reuse sram access & indexing code
+* 202126
+** Shifting Improvements
+Shift from ping-pong buffer. While shifting out, load next values from SDRAM.
+Have a couple of separate memories, to enable parallel data processing (512 pixels of data per output enables a chain length of 4 & a max shift frequency of 25 MHz [probably])
+- Needs also multiple color lookups, for index. Or we can do the lookup while loading the data from sdram
+** Power improvement
+- Lokal regulation (maybe create a custom pcb, that just plugs into power socket directly)
+- LEDs retain same brightness down to ~4V, cuts power consumption by 20% & greatly reduces heat
+** Software
+For development purposes (https://github.com/enjoy-digital/litex/wiki/Load-Application-Code-To-CPU):
+- Load over serial (maybe jtag_uart in the future)
+- Afterwards: either embedded rom or spiflash boot

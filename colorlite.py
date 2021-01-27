@@ -1,41 +1,13 @@
 #!/usr/bin/env python3
 
 #
-# This file is part of LiteX-Boards.
-#
-# Copyright (c) 2020 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2020 Florent Kermarrec <florent@enjoy-digital.fr>, David Sawatzke <david@sawatzke.dev>
 # SPDX-License-Identifier: BSD-2-Clause
 
 # Build/Use ----------------------------------------------------------------------------------------
 #
-# 1) SoC with regular UART and optional Ethernet connected to the CPU:
-# Connect a USB/UART to J19: TX of the FPGA is DATA_LED-, RX of the FPGA is KEY+.
-# ./colorlight_5a_75x.py --revision=7.0 (or 6.1) --build (--with-ethernet to add Ethernet capability)
-# Note: on revision 6.1, add --uart-baudrate=9600 to lower the baudrate.
-# ./colorlight_5a_75x.py --load
-# You should see the LiteX BIOS and be able to interact with it.
+# ./colorlite.py --revision=6.1 --build --load --no-uart
 #
-# 2) SoC with UART in crossover mode over Etherbone:
-# ./colorlight_5a_75x.py --revision=7.0 (or 6.1) --uart-name=crossover --with-etherbone --csr-csv=csr.csv
-# ./colorlight_5a_75x.py --load
-# ping 192.168.1.50
-# Get and install wishbone tool from: https://github.com/litex-hub/wishbone-utils/releases
-# wishbone-tool --ethernet-host 192.168.1.50 --server terminal --csr-csv csr.csv
-# You should see the LiteX BIOS and be able to interact with it.
-#
-# 3) SoC with USB-ACM UART (on V7.0):
-# - Replace U23 with a SN74CBT3245APWR or remove U23 and place jumper wires to make the ports bi-directional.
-# - Place a 15K resistor between J4 pin 2 and J4 pin 4.
-# - Place a 15K resistor between J4 pin 3 and J4 pin 4.
-# - Place a 1.5K resistor between J4 pin 1 and J4 pin 3.
-# - Connect USB DP (Green) to J4 pin 3, USB DN (White) to J4 pin 2.
-# ./colorlight_5a_75x.py --revision=7.0 --uart-name=usb_acm
-# ./colorlight_5a_75x.py --load
-# You should see the LiteX BIOS and be able to interact with it.
-#
-# Disclaimer: SoC 2) is still a Proof of Concept with large timings violations on the IP/UDP and
-# Etherbone stack that need to be optimized. It was initially just used to validate the reversed
-# pinout but happens to work on hardware...
 
 import os
 import argparse

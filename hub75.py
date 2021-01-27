@@ -383,9 +383,8 @@ class RowColorModule(Module):
             ),
         ]
 
-        for i in range(16):
-            self.sync += [If((buffer_select == 0) & enable, outputs[i].eq(outputs_buffer[i]))]
-
+        self.sync += [If((buffer_select == 0) & enable, outputs[i].eq(outputs_buffer[i]))
+            for i in range(16)]
 
 #
 # 1 cycle delay

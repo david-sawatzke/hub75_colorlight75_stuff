@@ -51,8 +51,11 @@ from litex_boards.platforms import colorlight_5a_75b
 from litex.build.lattice.trellis import trellis_args, trellis_argdict
 
 from litex.soc.cores.clock import *
+from litex.soc.cores import uart
 from litex.soc.integration.soc_core import *
+from litex.soc.integration.soc import SoCRegion
 from litex.soc.integration.builder import *
+from litex.soc.interconnect.wishbone import SRAM, Interface
 
 from litedram.modules import M12L16161A
 from litedram.phy import GENSDRPHY, HalfRateGENSDRPHY
@@ -161,12 +164,20 @@ class BaseSoC(SoCCore):
         self.add_constant("MEMTEST_DATA_SIZE", 0)
         self.add_constant("MEMTEST_ADDR_SIZE", 0)
 
+        # Use with `litex_server --uart --uart-port /dev/ttyUSB1 --uart-baudrate 9600`
+        uart_bridge = uart.UARTWishboneBridge(
+            pads     = platform.request("serial"),
+            clk_freq = sys_clk_freq,
+            baudrate = 9600)
+        self.submodules += uart_bridge
+        self.add_wb_master(uart_bridge.wishbone)
 
         # CRG --------------------------------------------------------------------------------------
-        with_rst = kwargs["uart_name"] not in [
-            "serial",
-            "bridge",
-        ]  # serial_rx shared with user_btn_n.
+        with_rst = False
+        #kwargs["uart_name"] not in [
+            #"serial",
+            #"bridge",
+        #]  # serial_rx shared with user_btn_n.
         self.submodules.crg = _CRG(platform, sys_clk_freq, with_rst=with_rst)
 
         # Add hub75 connectors
@@ -199,9 +210,15 @@ class BaseSoC(SoCCore):
         write_port = self.sdram.crossbar.get_port(mode="write", data_width=32)
         read_port = self.sdram.crossbar.get_port(mode="read", data_width=32)
 
-        self.submodules.hub75_specific1 = hub75.SpecificMemoryStuff(
+        self.submodules.hub75_specific = specific = hub75.SpecificMemoryStuff(
             hub75_common, pins, write_port, read_port
         )
+
+        # Now add the palette memory as ram
+
+        self.submodules.palette_ram = palette_ram = SRAM(specific.palette_memory, bus=Interface(data_width=self.bus.data_width))
+        self.bus.add_slave("palette", palette_ram.bus, SoCRegion(origin=0x90000000, size=palette_ram.mem.depth, linker=True))
+
         # Ethernet / Etherbone ---------------------------------------------------------------------
         # if with_ethernet or with_etherbone:
         #     self.submodules.ethphy = LiteEthPHYRGMII(

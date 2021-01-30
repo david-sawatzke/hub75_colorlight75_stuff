@@ -126,23 +126,21 @@ class BaseSoC(SoCCore):
             self,
             platform,
             sys_clk_freq,
-            ident="LiteX SoC on Colorlight 5A-75B",
-            ident_version=True,
-            **kwargs
+            cpu_type = "vexriscv",
+            cpu_variant = "minimal",
+            cpu_freq = sys_clk_freq,
+            ident="LiteX SoC on Colorlight 5A-75B", ident_version=True,
+            integrated_rom_size = 0x8000,
+            integrated_ram_size = 0x4000,
+            uart_name="crossover+bridge",
+            # Use with `litex_server --uart --uart-port /dev/ttyUSB1`
+            uart_baudrate=115200,
         )
 
         # TODO Remove this
         # Reduce memtest size to avoid walking over image data
         self.add_constant("MEMTEST_DATA_SIZE", 0)
         self.add_constant("MEMTEST_ADDR_SIZE", 0)
-
-        # Use with `litex_server --uart --uart-port /dev/ttyUSB1 --uart-baudrate 9600`
-        uart_bridge = uart.UARTWishboneBridge(
-            pads     = platform.request("serial"),
-            clk_freq = sys_clk_freq,
-            baudrate = 9600)
-        self.submodules += uart_bridge
-        self.add_wb_master(uart_bridge.wishbone)
 
         # CRG --------------------------------------------------------------------------------------
         with_rst = False
@@ -210,7 +208,7 @@ class BaseSoC(SoCCore):
 def main():
     parser = argparse.ArgumentParser(description="LiteX SoC on Colorlight 5A-75X")
     builder_args(parser)
-    soc_core_args(parser)
+    # soc_core_args(parser)
     trellis_args(parser)
     parser.add_argument("--build", action="store_true", help="Build bitstream")
     parser.add_argument("--load", action="store_true", help="Load bitstream")

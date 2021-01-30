@@ -171,10 +171,8 @@ class BaseSoC(SoCCore):
             phy=self.sdrphy,
             module=sdram_cls(sys_clk_freq, sdram_rate),
             origin=self.mem_map["main_ram"],
-            size=kwargs.get("max_sdram_size", sdram_size),
-            l2_cache_size=kwargs.get("l2_size", 8192),
-            l2_cache_min_data_width=kwargs.get("min_l2_data_width", 128),
-            l2_cache_reverse=True,
+            size=sdram_size,
+            l2_cache_size=0
         )
 
         write_port = self.sdram.crossbar.get_port(mode="write", data_width=32)

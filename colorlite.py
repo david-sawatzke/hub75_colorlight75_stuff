@@ -6,7 +6,7 @@
 
 # Build/Use ----------------------------------------------------------------------------------------
 #
-# ./colorlite.py --revision=6.1 --build --load --no-uart
+# ./colorlite.py --revision=6.1 --build --load
 #
 
 import os

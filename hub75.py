@@ -232,7 +232,7 @@ class RowModule(Module):
         clk: Signal(1),
         collumns: int = 64,
     ):
-        pipeline_delay = 4
+        pipeline_delay = 5
         output_delay = 16
         delay = pipeline_delay + output_delay
         counter_max = collumns * 16 + delay

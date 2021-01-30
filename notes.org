@@ -20,6 +20,8 @@
 - ICN2028 http://www.xlix.ru/datasheet/ICN2053.pdf
 * Protocol description
 - https://bikerglen.com/projects/lighting/led-panel-1up/
+- https://www.doityourselfchristmas.com/wiki/index.php?title=E1.31_(Streaming-ACN)_Protocol (maybe)
+- Art-Net or TPM2.net (https://shop.dmx4all.de/en/new-products/hub75e-dot-matrix-control.html)
 * Usefull stuff (unused)
 - Migen Clock Domain Summary
   https://gist.github.com/cr1901/5de5b276fca539b66fe7f4493a5bfe7d

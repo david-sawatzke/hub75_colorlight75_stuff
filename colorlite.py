@@ -132,7 +132,8 @@ class BaseSoC(SoCCore):
             ident="LiteX SoC on Colorlight 5A-75B", ident_version=True,
             integrated_rom_size = 0x8000,
             integrated_ram_size = 0x4000,
-            uart_name="crossover+bridge",
+            uart_name="serial",
+            # uart_name="crossover+bridge",
             # Use with `litex_server --uart --uart-port /dev/ttyUSB1`
             uart_baudrate=115200,
         )
@@ -172,7 +173,8 @@ class BaseSoC(SoCCore):
             module=sdram_cls(sys_clk_freq, sdram_rate),
             origin=self.mem_map["main_ram"],
             size=sdram_size,
-            l2_cache_size=0
+            # l2_cache_size=0,
+            l2_cache_size=128,
         )
 
         write_port = self.sdram.crossbar.get_port(mode="write", data_width=32)

@@ -5,6 +5,8 @@ from litedram.frontend.dma import LiteDRAMDMAWriter,LiteDRAMDMAReader
 import png
 
 
+sdram_offset = 0x00400000//2//4
+
 def _get_image_array():
     r = png.Reader(file=open("demo_img.png", "rb"))
     img = r.read()
@@ -204,22 +206,22 @@ class RamAddressModule(Module):
             ).Elif(
                 self.counter_select == 0,
                 self.adr.eq(
-                    (row) * collumns + self.collumn
+                    sdram_offset + (row) * collumns + self.collumn
                 ),
             ).Elif(
                 self.counter_select == 1,
                 self.adr.eq(
-                    (row + 16) * collumns + self.collumn
+                    sdram_offset + (row + 16) * collumns + self.collumn
                 ),
             ).Elif(
                 self.counter_select == 2,
                 self.adr.eq(
-                    (row + 32) * collumns + self.collumn
+                    sdram_offset + (row + 32) * collumns + self.collumn
                 ),
             ).Elif(
                 self.counter_select == 3,
                 self.adr.eq(
-                    (row + 48) * collumns + self.collumn
+                    sdram_offset + (row + 48) * collumns + self.collumn
                 ),
             ),
         ]
@@ -232,7 +234,7 @@ class RowModule(Module):
         clk: Signal(1),
         collumns: int = 64,
     ):
-        pipeline_delay = 5
+        pipeline_delay = 4
         output_delay = 16
         delay = pipeline_delay + output_delay
         counter_max = collumns * 16 + delay
@@ -295,7 +297,7 @@ class RamInitializer(Module):
                 writer.sink.valid.eq(True),
                 If((writer.sink.ready == True) | (img_counter == 0),
                     img_counter.eq(img_counter + 1),
-                    writer.sink.address.eq(img_counter),
+                    writer.sink.address.eq(sdram_offset + img_counter),
                     writer.sink.data.eq(img_data[img_counter]),# << 24 | 0),
                 ),
             ).Else(writer.sink.valid.eq(False)),

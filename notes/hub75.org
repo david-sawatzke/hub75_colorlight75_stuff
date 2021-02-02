@@ -12,4 +12,6 @@ output, with both the top & bottom half. This means, we can shift a bit out ever
 
 In total, this means 12 of 56 sysMEM blocks
 
-
+The total panelcount is thus 8 * 4 -> 32, so 65536 (or 2^16) pixels.
+This means (if one pixel has 32 bits) 192k sdram usage for full color image or
+64k for a indexed image (exkl. palette, adds 1k).

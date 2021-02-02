@@ -1,0 +1,32 @@
+#+TITLE: Memory Usage
+
+* Memory usage of elements
+- 192k for full-color image
+- 64k for indexed image
+- 65k for indexed image with palette
+* Flash memory split up
+Flash memory size: 16MBit to 32MBit (just assume 16 MBit)
+  4 KByte sector (and min. erase) size
+bitstream size: 5.42MBit (just use 8Mbit)
+That means we have 8MBit (1Mbyte) remaining to use.
+Idea:
+- 224 KByte code
+  - Maybe a separate bootloader?
+    - In gateware/rom?
+- 16 KByte config data
+  - MAC, IP, default image, output config
+- 4 KByte image metadata
+  - 1 KByte per storage location
+    - Contains palette vs full color
+    - Maybe output mapping or other stuff
+- 12 KByte palette data
+- 4 Image storage locations
+  Either one full color image or 3 indexed images
+* SDRAM split up
+- We need a split between hub75 ram and application ram
+  - Just half/half?
+  - Maybe add both halves separately into the memory bus, with the lower halve having an l2 cache
+- 256K size for image, double buffered -> 512K
+  (Use 32 bit words for rgb or palette lookup, easier that way)
+  (palette is stored inside the fpga)
+-> Lots of free space. Can we use it in any useful way? Maybe rendering with scrolling text & stuff?

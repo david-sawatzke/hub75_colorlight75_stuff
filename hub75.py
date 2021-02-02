@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+# Protocol description https://fw.hardijzer.nl/?p=223
+# Using binary code modulation (http://www.batsocks.co.uk/readme/art_bcm_1.htm)
 from migen import *
 from migen.genlib.fifo import SyncFIFO
 from litedram.frontend.dma import LiteDRAMDMAWriter,LiteDRAMDMAReader
@@ -47,6 +49,7 @@ def _get_indexed_image_arrays():
     return (out_array, palette)
 
 
+# Taken from https://learn.adafruit.com/led-tricks-gamma-correction/the-longer-fix
 def _get_gamma_corr(bits_in=8, bits_out=8):
     gamma = 2.8
     max_in = (1 << bits_in) - 1

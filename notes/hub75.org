@@ -1,0 +1,15 @@
+#+TITLE: Hub75
+
+
+* Planned new hub75 driver
+Add a double buffering sheme, so that data for the next line is read from sram, while the last one is being shifted out.
+Read data from sdram into buffers (do palette lookup & maybe gamma correction at the same time).
+This is done with 6 memory units, each 512 elements deep and 32 bits wide. (*2, for double buffering).
+
+Each one is either assigned to the r, g or b channel. A collection of 3 memory
+units can supply 4 pipelines at once, so in total each pipeline handles one
+output, with both the top & bottom half. This means, we can shift a bit out every two cycles, without delay.
+
+In total, this means 12 of 56 sysMEM blocks
+
+

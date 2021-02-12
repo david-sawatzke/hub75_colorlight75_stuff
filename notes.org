@@ -54,7 +54,7 @@ The pipeline is flushed while the data is being latched
 Since we always read 4 bytes, just use the upper byte for the indexed image
 ander the lower 3 bytes for rgb -> rgbi
 We can reuse sram access & indexing code
-* 202126
+* 210126
 ** Shifting Improvements
 Shift from ping-pong buffer. While shifting out, load next values from SDRAM.
 Have a couple of separate memories, to enable parallel data processing (512 pixels of data per output enables a chain length of 4 & a max shift frequency of 25 MHz [probably])
@@ -66,3 +66,12 @@ Have a couple of separate memories, to enable parallel data processing (512 pixe
 For development purposes (https://github.com/enjoy-digital/litex/wiki/Load-Application-Code-To-CPU):
 - Load over serial (maybe jtag_uart in the future)
 - Afterwards: either embedded rom or spiflash boot
+* 210201
+** Elaborated improvements
+** Added notes about memory splitting
+* 210208
+** MAC
+- ECP5 has a traceid, unique per device (https://www.latticesemi.com/-/media/LatticeSemi/Documents/ApplicationNotes/UZ/UsingTraceID.ashx?document_id=39093)
+- Unfortunately only readable via JTAG or sspi (svf hacking, probably D:)
+** Art-Net
+Only need ArtDMX & ArtSync packets

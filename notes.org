@@ -11,7 +11,7 @@
 - Getting started https://github.com/litex-hub/fpga_101/
 - Migen manual https://m-labs.hk/migen/manual/fhdl.html
 * Stuff to keep in mind
-- Eth performance increases
+- Eth performance increases/compliance
   - Seperate clock https://github.com/litex-hub/wishbone-utils/issues/24
   - Wider bus https://github.com/enjoy-digital/liteeth/pull/21
 * Ideas

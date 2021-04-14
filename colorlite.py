@@ -91,16 +91,6 @@ class _CRG(Module):
                 self.cd_sys_ps, sys_clk_freq, phase=180
             )  # Idealy 90° but needs to be increased.
 
-        # USB PLL
-        if with_usb_pll:
-            self.submodules.usb_pll = usb_pll = ECP5PLL()
-            self.comb += usb_pll.reset.eq(~rst_n | self.rst)
-            usb_pll.register_clkin(clk, clk_freq)
-            self.clock_domains.cd_usb_12 = ClockDomain()
-            self.clock_domains.cd_usb_48 = ClockDomain()
-            usb_pll.create_clkout(self.cd_usb_12, 12e6, margin=0)
-            usb_pll.create_clkout(self.cd_usb_48, 48e6, margin=0)
-
         # SDRAM clock
         sdram_clk = ClockSignal("sys2x_ps" if sdram_rate == "1:2" else "sys_ps")
         self.specials += DDROutput(1, 0, platform.request("sdram_clock"), sdram_clk)
@@ -113,14 +103,12 @@ class BaseSoC(SoCCore):
     def __init__(
         self,
         revision,
-        with_ethernet=False,
-        with_etherbone=False,
         sys_clk_freq=50e6,
         sdram_rate="1:1",
         **kwargs
     ):
         platform = colorlight_5a_75b.Platform(revision=revision)
-
+        sys_clk_freq = int(sys_clk_freq)
         # SoCCore ----------------------------------------------------------------------------------
         SoCCore.__init__(
             self,
@@ -190,16 +178,13 @@ class BaseSoC(SoCCore):
         self.bus.add_slave("palette", palette_ram.bus, SoCRegion(origin=0x90000000, size=palette_ram.mem.depth, linker=True))
 
         # Ethernet / Etherbone ---------------------------------------------------------------------
-        # if with_ethernet or with_etherbone:
-        #     self.submodules.ethphy = LiteEthPHYRGMII(
-        #         clock_pads=self.platform.request("eth_clocks"),
-        #         pads=self.platform.request("eth"),
-        #     )
-        #     self.add_csr("ethphy")
-        #     if with_ethernet:
-        #         self.add_ethernet(phy=self.ethphy)
-        #     if with_etherbone:
-        #         self.add_etherbone(phy=self.ethphy)
+        self.submodules.ethphy = LiteEthPHYRGMII(
+            clock_pads=self.platform.request("eth_clocks"),
+            pads=self.platform.request("eth"),
+        )
+        self.add_csr("ethphy")
+        self.add_ethernet(phy=self.ethphy)
+        self.add_etherbone(phy=self.ethphy)
 
 
 # Build --------------------------------------------------------------------------------------------
@@ -218,26 +203,19 @@ def main():
         type=str,
         help="Board revision 7.0 (default) or 6.1",
     )
-    parser.add_argument(
-        "--with-ethernet", action="store_true", help="Enable Ethernet support"
-    )
-    parser.add_argument(
-        "--with-etherbone", action="store_true", help="Enable Etherbone support"
-    )
+    parser.add_argument("--ip-address",  default="192.168.1.20",   help="Ethernet IP address of the board (default: 192.168.1.20).")
+    parser.add_argument("--mac-address", default="0x726b895bc2e2", help="Ethernet MAC address of the board (defaullt: 0x726b895bc2e2).")
     parser.add_argument(
         "--eth-phy", default=0, type=int, help="Ethernet PHY 0 or 1 (default=0)"
     )
     parser.add_argument(
         # TODO raise it to 60e6 or whatever fits for ethernet
-        "--sys-clk-freq", default=40e6, help="System clock frequency (default: 50MHz)"
+        "--sys-clk-freq", default=50e6, help="System clock frequency (default: 50MHz)"
     )
     args = parser.parse_args()
 
-    assert not (args.with_ethernet and args.with_etherbone)
     soc = BaseSoC(
         revision=args.revision,
-        with_ethernet=args.with_ethernet,
-        with_etherbone=args.with_etherbone,
         sys_clk_freq=args.sys_clk_freq,
         **soc_core_argdict(args)
     )

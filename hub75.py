@@ -3,11 +3,12 @@
 # Using binary code modulation (http://www.batsocks.co.uk/readme/art_bcm_1.htm)
 from migen import *
 from migen.genlib.fifo import SyncFIFO
-from litedram.frontend.dma import LiteDRAMDMAWriter,LiteDRAMDMAReader
+from litedram.frontend.dma import LiteDRAMDMAWriter, LiteDRAMDMAReader
 import png
 
 
 sdram_offset = 0x00400000//2//4
+
 
 def _get_image_array():
     r = png.Reader(file=open("demo_img.png", "rb"))
@@ -73,7 +74,8 @@ class Common(Module):
         counter = Signal(max=counter_max)
         brightness_bit = Signal(max=brightness_bits)
         self.bit = brightness_bit
-        brightness_counter = Signal(max=(1 << brightness_bits) * brightness_psc)
+        brightness_counter = Signal(
+            max=(1 << brightness_bits) * brightness_psc)
         row_active = Signal(4)
         row_shifting = Signal(4)
         self.row_select = row_shifting
@@ -100,18 +102,19 @@ class Common(Module):
             outputs_common.lat.eq(1),
             If(
                 counter == 0,
-                NextValue(brightness_counter, (1 << brightness_bit) * brightness_psc),
+                NextValue(brightness_counter,
+                          (1 << brightness_bit) * brightness_psc),
                 start_shifting.eq(1),
                 If(
                     brightness_bit != 0,
                     NextValue(row_active, row_shifting),
-                    NextValue(brightness_bit, brightness_bit - 1),
-                ).Else(
+                    NextValue(brightness_bit, brightness_bit - 1),)
+                .Else(
                     NextValue(row_shifting, row_shifting + 1),
                     NextValue(brightness_bit, brightness_bits - 1),
                 ),
-                NextState("WAIT"),
-            ).Else(
+                NextState("WAIT"),)
+            .Else(
                 start_shifting.eq(0),
             ),
         )
@@ -119,7 +122,8 @@ class Common(Module):
         self.sync += [
             counter.eq(counter + 1),
             If(counter == counter_max - 1, counter.eq(0)),
-            If(brightness_counter != 0, brightness_counter.eq(brightness_counter - 1)),
+            If(brightness_counter != 0, brightness_counter.eq(
+                brightness_counter - 1)),
         ]
 
         # combinatorial assignements
@@ -180,9 +184,9 @@ class RamAddressModule(Module):
         row: Signal(4),
         collumns: int = 64,
     ):
-        self.counter = Signal(max = collumns * 16)
-        self.counter_select = Signal(max = 16)
-        self.collumn = Signal(max = collumns)
+        self.counter = Signal(max=collumns * 16)
+        self.counter_select = Signal(max=16)
+        self.collumn = Signal(max=collumns)
         self.adr = Signal(32)
         self.started = Signal(1)
         self.start = Signal(1)
@@ -195,39 +199,40 @@ class RamAddressModule(Module):
         self.sync += [
             If(start,
                 self.start.eq(True),
-            ),
+               ),
             If((self.counter == 0) & (self.start == True) & (enable == True),
                 self.counter.eq(1),
-                self.start.eq(False),
-            ).Elif((self.counter == (collumns * 16 - 1)) & (enable == True),
-                self.counter.eq(0)
-            ).Elif((self.counter > 0) & (enable == True),
-                self.counter.eq(self.counter + 1)
-            ),
+                self.start.eq(False),)
+            .Elif((self.counter == (collumns * 16 - 1)) & (enable == True),
+                  self.counter.eq(0))
+            .Elif((self.counter > 0) & (enable == True),
+                  self.counter.eq(self.counter + 1)
+                  ),
             If(
-                enable == False
-            ).Elif(
+                enable == False)
+            .Elif(
                 self.counter_select == 0,
                 self.adr.eq(
                     sdram_offset + (row) * collumns + self.collumn
-                ),
-            ).Elif(
+                ),)
+            .Elif(
                 self.counter_select == 1,
                 self.adr.eq(
                     sdram_offset + (row + 16) * collumns + self.collumn
-                ),
-            ).Elif(
+                ),)
+            .Elif(
                 self.counter_select == 2,
                 self.adr.eq(
                     sdram_offset + (row + 32) * collumns + self.collumn
-                ),
-            ).Elif(
+                ),)
+            .Elif(
                 self.counter_select == 3,
                 self.adr.eq(
                     sdram_offset + (row + 48) * collumns + self.collumn
                 ),
             ),
         ]
+
 
 class RowModule(Module):
     def __init__(
@@ -274,14 +279,14 @@ class RowModule(Module):
 
         self.sync += [
             If((counter == 0) & (start == True) & (enable == True),
-                counter.eq(1),
-            ).Elif((counter == (counter_max - 1)) & enable,
-                counter.eq(0),
-            ).Elif(enable & (counter > 0), counter.eq(counter + 1)
-            ),
+                counter.eq(1),)
+            .Elif((counter == (counter_max - 1)) & enable,
+                  counter.eq(0),)
+            .Elif(enable & (counter > 0), counter.eq(counter + 1)
+                  ),
             If(counter == (counter_max - 1),
-               shifting_done.eq(1)
-            ).Else(
+               shifting_done.eq(1))
+            .Else(
                 shifting_done.eq(0)
             ),
         ]
@@ -301,16 +306,17 @@ class RamInitializer(Module):
                 If((writer.sink.ready == True) | (img_counter == 0),
                     img_counter.eq(img_counter + 1),
                     writer.sink.address.eq(sdram_offset + img_counter),
-                    writer.sink.data.eq(img_data[img_counter]),# << 24 | 0),
-                ),
-            ).Else(writer.sink.valid.eq(False)),
+                    writer.sink.data.eq(img_data[img_counter]),  # << 24 | 0),
+                   ),)
+            .Else(writer.sink.valid.eq(False)),
         ]
 
 
 class Specific(Module):
     def __init__(self, hub75_common, outputs_specific, enable, img_data, palette_memory):
         rgb_color = Signal(24)
-        self.specials.palette_port = palette_port = palette_memory.get_port(has_re = True)
+        self.specials.palette_port = palette_port = palette_memory.get_port(
+            has_re=True)
         r_pins = Array()
         g_pins = Array()
         b_pins = Array()
@@ -358,7 +364,7 @@ class Specific(Module):
         self.sync += [
             If(enable,
                 palette_port.adr.eq(img_data),
-            )
+               )
         ]
 
 
@@ -385,20 +391,23 @@ class RowColorModule(Module):
         self.sync += [
             If(enable,
                 outputs_buffer[buffer_select].eq(gamma.out_bit),
-            ),
+               ),
         ]
 
         self.sync += [If((buffer_select == 0) & enable, outputs[i].eq(outputs_buffer[i]))
-            for i in range(16)]
+                      for i in range(16)]
 
 #
 # 1 cycle delay
+
+
 class GammaCorrection(Module):
     def __init__(self, enable, value, out_bits, bit):
         self.out_bit = Signal()
         gamma_lut = _get_gamma_corr(bits_out=out_bits)
         bit_mask = 1 << bit
-        self.sync += [If(enable, self.out_bit.eq((gamma_lut[value] & bit_mask) != 0))]
+        self.sync += [If(enable,
+                         self.out_bit.eq((gamma_lut[value] & bit_mask) != 0))]
 
 
 class _TestPads(Module):
@@ -415,7 +424,6 @@ class _TestPads(Module):
         self.row = Signal(5)
 
 
-
 def _test():
     for i in range(16 * 64 * 8 * 16):
         yield
@@ -425,10 +433,13 @@ class _TestModule(Module):
     def __init__(
         self, out_freq, sys_clk_freq, outputs_common, outputs_specific, collumns
     ):
-        self.read_port = LiteDRAMNativeReadPort(address_width = 32, data_width=32)
-        self.write_port = LiteDRAMNativeWritePort(address_width = 32, data_width=32)
+        self.read_port = LiteDRAMNativeReadPort(
+            address_width=32, data_width=32)
+        self.write_port = LiteDRAMNativeWritePort(
+            address_width=32, data_width=32)
         hub75_common = Common(outputs_common, brightness_psc=15)
-        hub75_specific = SpecificMemoryStuff(hub75_common, [outputs_specific], self.write_port, self.read_port, collumns = collumns)
+        hub75_specific = SpecificMemoryStuff(hub75_common, [
+                                             outputs_specific], self.write_port, self.read_port, collumns=collumns)
         self.submodules.common = hub75_common
         self.submodules.specific = hub75_specific
 

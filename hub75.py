@@ -156,9 +156,10 @@ class SpecificMemoryStuff(Module):
             row_writers.append(row_writer)
             self.specials += [row_buffer, row_reader, row_writer]
 
+        shifting_buffer = Signal()
         mem_start = Signal()
         self.submodules.buffer_reader = RamBufferReaderModule(
-            mem_start, hub75_common.row_select, read_port, row_writers[0], collumns)
+            mem_start, (hub75_common.row_select + 1) & 0xF, read_port, row_writers[~shifting_buffer], collumns)
 
         row_start = Signal()
         row_enable = Signal()
@@ -176,30 +177,26 @@ class SpecificMemoryStuff(Module):
         fsm.act("IDLE",
                 If((hub75_common.start_shifting & (hub75_common.bit == 7)) == True,
                    mem_start.eq(True),
-                   NextState("LOAD_BUFFER"))
+                   row_start.eq(True),
+                   row_enable.eq(True),
+                   NextState("SHIFT_OUT"))
                 .Elif((hub75_common.start_shifting & (hub75_common.bit != 7)) == True,
                       row_start.eq(True),
                       row_enable.eq(True),
                       NextState("SHIFT_OUT")
                       )
                 )
-        fsm.act("LOAD_BUFFER",
-                running.eq(True),
-                If(self.buffer_reader.done == True,
-                   row_start.eq(True),
-                   row_enable.eq(True),
-                   NextState("SHIFT_OUT")
-                   )
-                )
         fsm.act("SHIFT_OUT",
                 running.eq(True),
                 row_enable.eq(True),
-                row_readers[0].adr.eq(
+                row_readers[shifting_buffer].adr.eq(
                     self.row_module.counter),
-                data.eq(row_readers[0].dat_r),
-                If(self.row_module.shifting_done == True,
-                   NextState("IDLE")
-                   )
+                data.eq(row_readers[shifting_buffer].dat_r),
+                If((hub75_common.bit == 0) & self.row_module.shifting_done & self.buffer_reader.done,
+                   NextValue(shifting_buffer, ~shifting_buffer),
+                   NextState("IDLE")),
+                If((hub75_common.bit != 0) & self.row_module.shifting_done,
+                   NextState("IDLE"))
                 )
         self.comb += [
             # Eliminate the delay

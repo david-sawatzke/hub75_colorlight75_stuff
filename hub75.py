@@ -141,15 +141,24 @@ class SpecificMemoryStuff(Module):
         self.specials.palette_memory = palette_memory = Memory(
             width=32, depth=len(img[1]), init=img[1], name="palette"
         )
-        self.specials.row_buffer = row_buffer = Memory(
-            # width=32, depth=512,
-            width=32, depth=collumns * 16,
-        )
-        self.specials.row_write_port = row_buffer.get_port(write_capable=True)
-        self.specials.row_read_port = row_buffer.get_port()
+        row_buffers = Array()
+        row_readers = Array()
+        row_writers = Array()
+        for _ in range(2):
+            row_buffer = Memory(
+                # width=32, depth=512,
+                width=32, depth=collumns * 16,
+            )
+            row_writer = row_buffer.get_port(write_capable=True)
+            row_reader = row_buffer.get_port()
+            row_buffers.append(row_buffer)
+            row_readers.append(row_reader)
+            row_writers.append(row_writer)
+            self.specials += [row_buffer, row_reader, row_writer]
+
         mem_start = Signal()
         self.submodules.buffer_reader = RamBufferReaderModule(
-            mem_start, hub75_common.row_select, read_port, self.row_write_port, collumns)
+            mem_start, hub75_common.row_select, read_port, row_writers[0], collumns)
 
         row_start = Signal()
         row_enable = Signal()
@@ -185,9 +194,9 @@ class SpecificMemoryStuff(Module):
         fsm.act("SHIFT_OUT",
                 running.eq(True),
                 row_enable.eq(True),
-                self.row_read_port.adr.eq(
+                row_readers[0].adr.eq(
                     self.row_module.counter),
-                data.eq(self.row_read_port.dat_r),
+                data.eq(row_readers[0].dat_r),
                 If(self.row_module.shifting_done == True,
                    NextState("IDLE")
                    )

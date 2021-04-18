@@ -133,48 +133,115 @@ class Common(Module):
             outputs_common.row.eq(row_active),
         ]
 
+
 class SpecificMemoryStuff(Module):
     def __init__(self, hub75_common, outputs_specific, write_port, read_port, collumns=64,):
         img = _get_indexed_image_arrays()
-        clock_enable = Signal(reset=True)
         self.submodules.ram_initializer = RamInitializer(write_port, img)
-        self.submodules.reader = LiteDRAMDMAReader(read_port)
-        self.submodules.ram_adr = RamAddressModule(hub75_common.start_shifting, self.reader.sink.ready, hub75_common.row_select, collumns)
         self.specials.palette_memory = palette_memory = Memory(
             width=32, depth=len(img[1]), init=img[1], name="palette"
         )
-        self.submodules.row_module = hub75_common.row = row_module = RowModule(
-            self.ram_adr.started, clock_enable, hub75_common.clk, collumns
+        self.specials.row_buffer = row_buffer = Memory(
+            # width=32, depth=512,
+            width=32, depth=collumns * 16,
         )
+        self.specials.row_write_port = row_buffer.get_port(write_capable=True)
+        self.specials.row_read_port = row_buffer.get_port()
+        mem_start = Signal()
+        self.submodules.buffer_reader = RamBufferReaderModule(
+            mem_start, hub75_common.row_select, read_port, self.row_write_port, collumns)
+
+        row_start = Signal()
+        row_enable = Signal()
+        clock_enable = Signal()
+        self.submodules.row_module = hub75_common.row = row_module = RowModule(
+            row_start, row_enable, hub75_common.clk, collumns
+        )
+
         data = Signal(32)
-        self.submodules.specific = Specific(hub75_common, outputs_specific, clock_enable, data, palette_memory)
+        self.submodules.specific = Specific(
+            hub75_common, outputs_specific, clock_enable, data, palette_memory)
         running = Signal()
+
+        self.submodules.fsm = fsm = FSM(reset_state="IDLE")
+        fsm.act("IDLE",
+                If(hub75_common.start_shifting == True,
+                   mem_start.eq(True),
+                   NextState("LOAD_BUFFER")
+                   )
+                )
+        fsm.act("LOAD_BUFFER",
+                running.eq(True),
+                If(self.buffer_reader.done == True,
+                   row_start.eq(True),
+                   row_enable.eq(True),
+                   NextState("SHIFT_OUT")
+                   )
+                )
+        fsm.act("SHIFT_OUT",
+                running.eq(True),
+                row_enable.eq(True),
+                self.row_read_port.adr.eq(
+                    self.row_module.counter),
+                data.eq(self.row_read_port.dat_r),
+                If(self.row_module.shifting_done == True,
+                   NextState("IDLE")
+                   )
+                )
         self.comb += [
             # Eliminate the delay
-            hub75_common.shifting_done.eq(~(running | hub75_common.start_shifting | self.ram_adr.started)),
+            hub75_common.shifting_done.eq(
+                ~(running | hub75_common.start_shifting)),
+            clock_enable.eq(True),
+        ]
+
+        self.sync += []
+
+
+class RamBufferReaderModule(Module):
+    def __init__(
+            self,
+            start: Signal(1),
+            row: Signal(4),
+            mem_read_port,
+            buffer_write_port,
+            collumns: int = 64,
+    ):
+        self.done = Signal()
+        running = Signal()
+        self.submodules.reader = LiteDRAMDMAReader(mem_read_port)
+        self.submodules.ram_adr = RamAddressModule(
+            start, self.reader.sink.ready, row, collumns)
+        self.comb += [
+            # Eliminate the delay
+            self.done.eq(
+                ~(start | running)),
             self.reader.sink.address.eq(self.ram_adr.adr),
             self.reader.sink.valid.eq(self.ram_adr.started),
         ]
 
         self.sync += [
             If(self.reader.source.valid == True,
-                clock_enable.eq(True),
                 self.reader.source.ready.eq(True),
-                data.eq(self.reader.source.data),
-            ).Elif(
-                (self.ram_adr.started == False) & (running == True) & (self.reader.rsv_level == 0),
-                clock_enable.eq(True),
+                buffer_write_port.dat_w.eq(self.reader.source.data),
+                buffer_write_port.we.eq(True),
+                buffer_write_port.adr.eq(buffer_write_port.adr + 1),)
+            .Elif(
+                (self.ram_adr.started == False)
+                & (self.reader.rsv_level == 0),
                 self.reader.source.ready.eq(False),
-            ).Else(
-                clock_enable.eq(False),
+                buffer_write_port.we.eq(False),
+                buffer_write_port.adr.eq(~0),
+                running.eq(False),)
+            .Else(
                 self.reader.source.ready.eq(True),
+                buffer_write_port.we.eq(False),
             ),
-            If(self.ram_adr.started == True,
-               running.eq(True),
-            ).Elif(self.row_module.shifting_done == True,
-               running.eq(False),
-            ),
+            If(start,
+               running.eq(True)
+               )
         ]
+
 
 class RamAddressModule(Module):
     def __init__(
@@ -242,11 +309,11 @@ class RowModule(Module):
         clk: Signal(1),
         collumns: int = 64,
     ):
-        pipeline_delay = 4
+        pipeline_delay = 5
         output_delay = 16
         delay = pipeline_delay + output_delay
         counter_max = collumns * 16 + delay
-        counter = Signal(max=counter_max)
+        self.counter = counter = Signal(max=counter_max)
         counter_select = Signal(4)
         buffer_counter = Signal(max=counter_max)
         buffer_select = Signal(4)
@@ -439,7 +506,7 @@ class _TestModule(Module):
             address_width=32, data_width=32)
         hub75_common = Common(outputs_common, brightness_psc=15)
         hub75_specific = SpecificMemoryStuff(hub75_common, [
-                                             outputs_specific], self.write_port, self.read_port, collumns=collumns)
+            outputs_specific], self.write_port, self.read_port, collumns=collumns)
         self.submodules.common = hub75_common
         self.submodules.specific = hub75_specific
 

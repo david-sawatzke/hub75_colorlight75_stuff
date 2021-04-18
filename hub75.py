@@ -165,10 +165,14 @@ class SpecificMemoryStuff(Module):
 
         self.submodules.fsm = fsm = FSM(reset_state="IDLE")
         fsm.act("IDLE",
-                If(hub75_common.start_shifting == True,
+                If((hub75_common.start_shifting & (hub75_common.bit == 7)) == True,
                    mem_start.eq(True),
-                   NextState("LOAD_BUFFER")
-                   )
+                   NextState("LOAD_BUFFER"))
+                .Elif((hub75_common.start_shifting & (hub75_common.bit != 7)) == True,
+                      row_start.eq(True),
+                      row_enable.eq(True),
+                      NextState("SHIFT_OUT")
+                      )
                 )
         fsm.act("LOAD_BUFFER",
                 running.eq(True),

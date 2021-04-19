@@ -162,9 +162,8 @@ class SpecificMemoryStuff(Module):
             mem_start, (hub75_common.row_select + 1) & 0xF, read_port, row_writers[~shifting_buffer], collumns)
 
         row_start = Signal()
-        row_enable = Signal()
         self.submodules.row_module = hub75_common.row = row_module = RowModule(
-            row_start, row_enable, hub75_common.clk, collumns
+            row_start, hub75_common.clk, collumns
         )
 
         data = Signal(32)
@@ -177,17 +176,14 @@ class SpecificMemoryStuff(Module):
                 If((hub75_common.start_shifting & (hub75_common.bit == 7)) == True,
                    mem_start.eq(True),
                    row_start.eq(True),
-                   row_enable.eq(True),
                    NextState("SHIFT_OUT"))
                 .Elif((hub75_common.start_shifting & (hub75_common.bit != 7)) == True,
                       row_start.eq(True),
-                      row_enable.eq(True),
                       NextState("SHIFT_OUT")
                       )
                 )
         fsm.act("SHIFT_OUT",
                 running.eq(True),
-                row_enable.eq(True),
                 row_readers[shifting_buffer].adr.eq(
                     self.row_module.counter),
                 data.eq(row_readers[shifting_buffer].dat_r),
@@ -298,7 +294,6 @@ class RowModule(Module):
     def __init__(
         self,
         start: Signal(1),
-        enable: Signal(1),
         clk: Signal(1),
         collumns: int = 64,
     ):
@@ -338,11 +333,11 @@ class RowModule(Module):
         ]
 
         self.sync += [
-            If((counter == 0) & (start == True) & (enable == True),
+            If((counter == 0) & (start == True),
                 counter.eq(1),)
-            .Elif((counter == (counter_max - 1)) & enable,
+            .Elif((counter == (counter_max - 1)),
                   counter.eq(0),)
-            .Elif(enable & (counter > 0), counter.eq(counter + 1)
+            .Elif((counter > 0), counter.eq(counter + 1)
                   ),
             If(counter == (counter_max - 1),
                shifting_done.eq(1))

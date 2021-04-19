@@ -288,26 +288,11 @@ class RamAddressModule(Module):
             If(
                 enable == False)
             .Elif(
-                self.counter_select == 0,
+                self.counter_select < 4,
                 self.adr.eq(
-                    sdram_offset + (row) * collumns + self.collumn
+                    sdram_offset + (row + self.counter_select *
+                                    16) * collumns + self.collumn
                 ),)
-            .Elif(
-                self.counter_select == 1,
-                self.adr.eq(
-                    sdram_offset + (row + 16) * collumns + self.collumn
-                ),)
-            .Elif(
-                self.counter_select == 2,
-                self.adr.eq(
-                    sdram_offset + (row + 32) * collumns + self.collumn
-                ),)
-            .Elif(
-                self.counter_select == 3,
-                self.adr.eq(
-                    sdram_offset + (row + 48) * collumns + self.collumn
-                ),
-            ),
         ]
 
 

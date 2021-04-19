@@ -163,14 +163,13 @@ class SpecificMemoryStuff(Module):
 
         row_start = Signal()
         row_enable = Signal()
-        clock_enable = Signal()
         self.submodules.row_module = hub75_common.row = row_module = RowModule(
             row_start, row_enable, hub75_common.clk, collumns
         )
 
         data = Signal(32)
         self.submodules.specific = Specific(
-            hub75_common, outputs_specific, clock_enable, data, palette_memory)
+            hub75_common, outputs_specific, data, palette_memory)
         running = Signal()
 
         self.submodules.fsm = fsm = FSM(reset_state="IDLE")
@@ -202,7 +201,6 @@ class SpecificMemoryStuff(Module):
             # Eliminate the delay
             hub75_common.shifting_done.eq(
                 ~(running | hub75_common.start_shifting)),
-            clock_enable.eq(True),
         ]
 
         self.sync += []
@@ -375,7 +373,7 @@ class RamInitializer(Module):
 
 
 class Specific(Module):
-    def __init__(self, hub75_common, outputs_specific, enable, img_data, palette_memory):
+    def __init__(self, hub75_common, outputs_specific, img_data, palette_memory):
         rgb_color = Signal(24)
         self.specials.palette_port = palette_port = palette_memory.get_port(
             has_re=True)
@@ -391,7 +389,6 @@ class Specific(Module):
             b_pins.append(output.b1)
 
         self.submodules.r_color = RowColorModule(
-            enable,
             r_pins,
             hub75_common.bit,
             hub75_common.row.buffer_select,
@@ -400,7 +397,6 @@ class Specific(Module):
             8,
         )
         self.submodules.g_color = RowColorModule(
-            enable,
             g_pins,
             hub75_common.bit,
             hub75_common.row.buffer_select,
@@ -409,7 +405,6 @@ class Specific(Module):
             8,
         )
         self.submodules.b_color = RowColorModule(
-            enable,
             b_pins,
             hub75_common.bit,
             hub75_common.row.buffer_select,
@@ -419,21 +414,18 @@ class Specific(Module):
         )
 
         self.comb += [
-            palette_port.re.eq(enable),
+            palette_port.re.eq(True),
             rgb_color.eq(palette_port.dat_r),
         ]
 
         self.sync += [
-            If(enable,
-                palette_port.adr.eq(img_data),
-               )
+            palette_port.adr.eq(img_data),
         ]
 
 
 class RowColorModule(Module):
     def __init__(
         self,
-        enable: Signal(1),
         outputs: Array(Signal(1)),
         bit: Signal(3),
         buffer_select: Signal(4),
@@ -447,16 +439,14 @@ class RowColorModule(Module):
         outputs_buffer = Array((Signal()) for x in range(16))
 
         self.submodules.gamma = gamma = GammaCorrection(
-            enable, (rgb_input >> color_offset) & 0xFF, out_bits, bit
+            (rgb_input >> color_offset) & 0xFF, out_bits, bit
         )
 
         self.sync += [
-            If(enable,
-                outputs_buffer[buffer_select].eq(gamma.out_bit),
-               ),
+            outputs_buffer[buffer_select].eq(gamma.out_bit),
         ]
 
-        self.sync += [If((buffer_select == 0) & enable, outputs[i].eq(outputs_buffer[i]))
+        self.sync += [If((buffer_select == 0), outputs[i].eq(outputs_buffer[i]))
                       for i in range(16)]
 
 #
@@ -464,12 +454,13 @@ class RowColorModule(Module):
 
 
 class GammaCorrection(Module):
-    def __init__(self, enable, value, out_bits, bit):
+    def __init__(self, value, out_bits, bit):
         self.out_bit = Signal()
         gamma_lut = _get_gamma_corr(bits_out=out_bits)
         bit_mask = 1 << bit
-        self.sync += [If(enable,
-                         self.out_bit.eq((gamma_lut[value] & bit_mask) != 0))]
+        self.sync += [
+            self.out_bit.eq((gamma_lut[value] & bit_mask) != 0)
+        ]
 
 
 class _TestPads(Module):

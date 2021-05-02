@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # Protocol description https://fw.hardijzer.nl/?p=223
 # Using binary code modulation (http://www.batsocks.co.uk/readme/art_bcm_1.htm)
-from migen import If, Signal, Array, Memory, Module, FSM, NextValue, NextState
+from migen import If, Signal, Array, Memory, Module, FSM, NextValue, NextState, Mux
 from migen.genlib.fifo import SyncFIFO
 from litedram.frontend.dma import LiteDRAMDMAWriter, LiteDRAMDMAReader
 import png
@@ -159,7 +159,8 @@ class SpecificMemoryStuff(Module):
         shifting_buffer = Signal()
         mem_start = Signal()
         self.submodules.buffer_reader = RamBufferReaderModule(
-            mem_start, (hub75_common.row_select + 1) & 0xF, read_port, row_writers[~shifting_buffer], collumns)
+            mem_start, (hub75_common.row_select + 1) & 0xF, read_port,
+            row_writers[~shifting_buffer], palette_memory, collumns)
 
         row_start = Signal()
         self.submodules.row_module = hub75_common.row = row_module = RowModule(
@@ -168,7 +169,7 @@ class SpecificMemoryStuff(Module):
 
         data = Signal(32)
         self.submodules.specific = Specific(
-            hub75_common, outputs_specific, data, palette_memory)
+            hub75_common, outputs_specific, data)
         running = Signal()
 
         self.submodules.fsm = fsm = FSM(reset_state="IDLE")
@@ -209,7 +210,7 @@ class RamBufferReaderModule(Module):
             row: Signal(4),
             mem_read_port,
             buffer_write_port,
-            # palette_memory,
+            palette_memory,
             collumns: int = 64,
     ):
         self.done = Signal()
@@ -251,21 +252,46 @@ class RamBufferReaderModule(Module):
         ]
 
         # Palette Lookup
-        # self.specials.palette_port = palette_port = palette_memory.get_port(
-        #     has_re=True)
+        self.specials.palette_port = palette_port = palette_memory.get_port()
 
-        # Buffer Writer
+        data_done = Signal()
+        data_valid = Signal()
+        data = Signal(24)
+        data_buffer = Signal(24)
+        use_palette = Signal(1)
+        self.comb += [data.eq(Mux(use_palette,
+                                  palette_port.dat_r, data_buffer)),
+                      use_palette.eq(True),
+                      ]
         self.sync += [
             If(ram_valid,
-                buffer_write_port.dat_w.eq(ram_data),
+               data_buffer.eq(ram_data & 0x0FFF),
+               palette_port.adr.eq(ram_data & 0x000F)
+               ),
+            data_valid.eq(ram_valid),
+            If(ram_done & (~data_done),
+               data_done.eq(True),
+               ).Else(
+                data_done.eq(ram_done),
+            )
+        ]
+
+        # Buffer Writer
+        buffer_done = Signal()
+        self.sync += [
+            If(data_valid,
                buffer_write_port.we.eq(True),
+               buffer_write_port.dat_w.eq(data),
                buffer_write_port.adr.eq(buffer_write_port.adr + 1),
                )
-            .Elif(ram_done,
+            .Elif(data_done & (~buffer_done),
+                  buffer_done.eq(True),
                   buffer_write_port.we.eq(False),
                   buffer_write_port.adr.eq(~0),
-                  running.eq(False),
-                  )
+                  running.eq(False),)
+            .Else(
+                buffer_done.eq(data_done)
+            )
         ]
 
 
@@ -319,7 +345,7 @@ class RowModule(Module):
         clk: Signal(1),
         collumns: int = 64,
     ):
-        pipeline_delay = 5
+        pipeline_delay = 4
         output_delay = 16
         delay = pipeline_delay + output_delay
         counter_max = collumns * 16 + delay
@@ -390,10 +416,8 @@ class RamInitializer(Module):
 
 
 class Specific(Module):
-    def __init__(self, hub75_common, outputs_specific, img_data, palette_memory):
-        rgb_color = Signal(24)
-        self.specials.palette_port = palette_port = palette_memory.get_port(
-            has_re=True)
+    def __init__(self, hub75_common, outputs_specific, img_data):
+        rgb_color = img_data
         r_pins = Array()
         g_pins = Array()
         b_pins = Array()
@@ -429,15 +453,6 @@ class Specific(Module):
             16,
             8,
         )
-
-        self.comb += [
-            palette_port.re.eq(True),
-            rgb_color.eq(palette_port.dat_r),
-        ]
-
-        self.sync += [
-            palette_port.adr.eq(img_data),
-        ]
 
 
 class RowColorModule(Module):

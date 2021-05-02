@@ -209,41 +209,63 @@ class RamBufferReaderModule(Module):
             row: Signal(4),
             mem_read_port,
             buffer_write_port,
+            # palette_memory,
             collumns: int = 64,
     ):
         self.done = Signal()
         running = Signal()
+        self.comb += [
+            # Eliminate the delay
+            self.done.eq(~(start | running)),
+        ]
+        self.sync += [If(start, running.eq(True))]
+
+        # RAM Reader
         self.submodules.reader = LiteDRAMDMAReader(mem_read_port)
         self.submodules.ram_adr = RamAddressModule(
             start, self.reader.sink.ready, row, collumns)
+
+        ram_valid = self.reader.source.valid
+        ram_data = self.reader.source.data
+        ram_done = Signal()
         self.comb += [
-            # Eliminate the delay
-            self.done.eq(
-                ~(start | running)),
             self.reader.sink.address.eq(self.ram_adr.adr),
             self.reader.sink.valid.eq(self.ram_adr.started),
+            ram_done.eq((self.ram_adr.started == False)
+                        & (self.reader.rsv_level == 0)
+                        & (self.reader.source.valid == False))
         ]
-
         self.sync += [
-            If(self.reader.source.valid == True,
+            If(self.reader.source.valid,
                 self.reader.source.ready.eq(True),
-                buffer_write_port.dat_w.eq(self.reader.source.data),
-                buffer_write_port.we.eq(True),
-                buffer_write_port.adr.eq(buffer_write_port.adr + 1),)
+               )
             .Elif(
                 (self.ram_adr.started == False)
                 & (self.reader.rsv_level == 0),
                 self.reader.source.ready.eq(False),
-                buffer_write_port.we.eq(False),
-                buffer_write_port.adr.eq(~0),
-                running.eq(False),)
+            )
             .Else(
                 self.reader.source.ready.eq(True),
                 buffer_write_port.we.eq(False),
             ),
-            If(start,
-               running.eq(True)
+        ]
+
+        # Palette Lookup
+        # self.specials.palette_port = palette_port = palette_memory.get_port(
+        #     has_re=True)
+
+        # Buffer Writer
+        self.sync += [
+            If(ram_valid,
+                buffer_write_port.dat_w.eq(ram_data),
+               buffer_write_port.we.eq(True),
+               buffer_write_port.adr.eq(buffer_write_port.adr + 1),
                )
+            .Elif(ram_done,
+                  buffer_write_port.we.eq(False),
+                  buffer_write_port.adr.eq(~0),
+                  running.eq(False),
+                  )
         ]
 
 

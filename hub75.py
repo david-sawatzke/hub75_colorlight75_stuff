@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # Protocol description https://fw.hardijzer.nl/?p=223
 # Using binary code modulation (http://www.batsocks.co.uk/readme/art_bcm_1.htm)
-from migen import *
+from migen import If, Signal, Array, Memory, Module, FSM, NextValue, NextState
 from migen.genlib.fifo import SyncFIFO
 from litedram.frontend.dma import LiteDRAMDMAWriter, LiteDRAMDMAReader
 import png

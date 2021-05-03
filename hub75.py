@@ -254,43 +254,66 @@ class RamBufferReaderModule(Module):
         # Palette Lookup
         self.specials.palette_port = palette_port = palette_memory.get_port()
 
-        data_done = Signal()
-        data_valid = Signal()
-        data = Signal(24)
-        data_buffer = Signal(24)
+        palette_data_done = Signal()
+        palette_data_valid = Signal()
+        palette_data = Signal(24)
+        palette_data_buffer = Signal(24)
         use_palette = Signal(1)
-        self.comb += [data.eq(Mux(use_palette,
-                                  palette_port.dat_r, data_buffer)),
+        self.comb += [palette_data.eq(Mux(use_palette,
+                                          palette_port.dat_r, palette_data_buffer)),
                       use_palette.eq(True),
                       ]
         self.sync += [
             If(ram_valid,
-               data_buffer.eq(ram_data & 0x0FFF),
+               palette_data_buffer.eq(ram_data & 0x0FFF),
                palette_port.adr.eq(ram_data & 0x000F)
                ),
-            data_valid.eq(ram_valid),
-            If(ram_done & (~data_done),
-               data_done.eq(True),
+            palette_data_valid.eq(ram_valid),
+            If(ram_done & (~palette_data_done),
+               palette_data_done.eq(True),
                ).Else(
-                data_done.eq(ram_done),
+                palette_data_done.eq(ram_done),
+            )
+        ]
+
+        # Gamma Correction
+        gamma_lut_r = _get_gamma_corr()
+        gamma_lut_g = _get_gamma_corr()
+        gamma_lut_b = _get_gamma_corr()
+        gamma_data_done = Signal()
+        gamma_data_valid = Signal()
+        gamma_data = Signal(24)
+        self.sync += [
+            If(palette_data_valid,
+               gamma_data.eq(
+                   gamma_lut_r[palette_data & 0xFF]
+                   | gamma_lut_g[(palette_data >> 8) & 0xFF] << 8
+                   | gamma_lut_b[(palette_data >> 16) & 0xFF] << 16
+               )
+               ),
+            gamma_data_valid.eq(palette_data_valid),
+            If(palette_data_done & (~gamma_data_done),
+               gamma_data_done.eq(True),
+               ).Else(
+                gamma_data_done.eq(palette_data_done),
             )
         ]
 
         # Buffer Writer
         buffer_done = Signal()
         self.sync += [
-            If(data_valid,
+            If(gamma_data_valid,
                buffer_write_port.we.eq(True),
-               buffer_write_port.dat_w.eq(data),
+               buffer_write_port.dat_w.eq(gamma_data),
                buffer_write_port.adr.eq(buffer_write_port.adr + 1),
                )
-            .Elif(data_done & (~buffer_done),
+            .Elif(gamma_data_done & (~buffer_done),
                   buffer_done.eq(True),
                   buffer_write_port.we.eq(False),
                   buffer_write_port.adr.eq(~0),
                   running.eq(False),)
             .Else(
-                buffer_done.eq(data_done)
+                buffer_done.eq(gamma_data_done)
             )
         ]
 
@@ -345,7 +368,7 @@ class RowModule(Module):
         clk: Signal(1),
         collumns: int = 64,
     ):
-        pipeline_delay = 4
+        pipeline_delay = 3
         output_delay = 16
         delay = pipeline_delay + output_delay
         counter_max = collumns * 16 + delay
@@ -435,14 +458,12 @@ class Specific(Module):
             hub75_common.row.buffer_select,
             rgb_color,
             0,
-            8,
         )
         self.submodules.g_color = RowColorModule(
             g_pins,
             hub75_common.bit,
             hub75_common.row.buffer_select,
             rgb_color,
-            8,
             8,
         )
         self.submodules.b_color = RowColorModule(
@@ -451,7 +472,6 @@ class Specific(Module):
             hub75_common.row.buffer_select,
             rgb_color,
             16,
-            8,
         )
 
 
@@ -463,36 +483,21 @@ class RowColorModule(Module):
         buffer_select: Signal(4),
         rgb_input: Signal(24),
         color_offset: int,
-        out_bits: int = 8,
     ):
         while len(outputs) < 16:
             outputs.append(Signal())
 
         outputs_buffer = Array((Signal()) for x in range(16))
-
-        self.submodules.gamma = gamma = GammaCorrection(
-            (rgb_input >> color_offset) & 0xFF, out_bits, bit
-        )
-
+        bit_mask = Signal(24)
         self.sync += [
-            outputs_buffer[buffer_select].eq(gamma.out_bit),
+            outputs_buffer[buffer_select].eq(
+                (rgb_input & bit_mask) != 0),
+            # Leads to 1 cycle delay, but that's probably not an issue
+            bit_mask.eq(1 << (color_offset + bit))
         ]
 
         self.sync += [If((buffer_select == 0), outputs[i].eq(outputs_buffer[i]))
                       for i in range(16)]
-
-#
-# 1 cycle delay
-
-
-class GammaCorrection(Module):
-    def __init__(self, value, out_bits, bit):
-        self.out_bit = Signal()
-        gamma_lut = _get_gamma_corr(bits_out=out_bits)
-        bit_mask = 1 << bit
-        self.sync += [
-            self.out_bit.eq((gamma_lut[value] & bit_mask) != 0)
-        ]
 
 
 class _TestPads(Module):

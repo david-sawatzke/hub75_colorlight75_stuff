@@ -61,7 +61,7 @@ def _get_gamma_corr(bits_in=8, bits_out=8):
     return gamma_lut
 
 
-class Common(Module):
+class FrameController(Module):
     def __init__(
         self, outputs_common, brightness_psc=1,  brightness_bits=8
     ):
@@ -130,7 +130,7 @@ class Common(Module):
         ]
 
 
-class SpecificMemoryStuff(Module):
+class RowController(Module):
     def __init__(self, hub75_common, outputs_specific, write_port, read_port, collumns=64,):
         img = _get_indexed_image_arrays()
         self.submodules.ram_initializer = RamInitializer(write_port, img)
@@ -154,7 +154,7 @@ class SpecificMemoryStuff(Module):
 
         shifting_buffer = Signal()
         mem_start = Signal()
-        self.submodules.buffer_reader = RamBufferReaderModule(
+        self.submodules.buffer_reader = RamToBufferReader(
             mem_start, (hub75_common.row_select + 1) & 0xF, read_port,
             row_writers[~shifting_buffer], palette_memory, collumns)
 
@@ -164,7 +164,7 @@ class SpecificMemoryStuff(Module):
         )
 
         data = Signal(32)
-        self.submodules.specific = Specific(
+        self.submodules.specific = Output(
             hub75_common, outputs_specific, data)
         running = Signal()
 
@@ -199,7 +199,7 @@ class SpecificMemoryStuff(Module):
         self.sync += []
 
 
-class RamBufferReaderModule(Module):
+class RamToBufferReader(Module):
     def __init__(
             self,
             start: Signal(1),
@@ -219,7 +219,7 @@ class RamBufferReaderModule(Module):
 
         # RAM Reader
         self.submodules.reader = LiteDRAMDMAReader(mem_read_port)
-        self.submodules.ram_adr = RamAddressModule(
+        self.submodules.ram_adr = RamAddressGenerator(
             start, self.reader.sink.ready, row, collumns)
 
         ram_valid = self.reader.source.valid
@@ -314,7 +314,7 @@ class RamBufferReaderModule(Module):
         ]
 
 
-class RamAddressModule(Module):
+class RamAddressGenerator(Module):
     def __init__(
         self,
         start: Signal(1),
@@ -423,7 +423,7 @@ class RamInitializer(Module):
         ]
 
 
-class Specific(Module):
+class Output(Module):
     def __init__(self, hub75_common, outputs_specific, img_data):
         r_pins = Array()
         g_pins = Array()
@@ -436,21 +436,21 @@ class Specific(Module):
             b_pins.append(output.b0)
             b_pins.append(output.b1)
 
-        self.submodules.r_color = RowColorModule(
+        self.submodules.r_color = RowColorOutput(
             r_pins,
             hub75_common.bit,
             hub75_common.row.buffer_select,
             img_data,
             0,
         )
-        self.submodules.g_color = RowColorModule(
+        self.submodules.g_color = RowColorOutput(
             g_pins,
             hub75_common.bit,
             hub75_common.row.buffer_select,
             img_data,
             8,
         )
-        self.submodules.b_color = RowColorModule(
+        self.submodules.b_color = RowColorOutput(
             b_pins,
             hub75_common.bit,
             hub75_common.row.buffer_select,
@@ -459,7 +459,7 @@ class Specific(Module):
         )
 
 
-class RowColorModule(Module):
+class RowColorOutput(Module):
     def __init__(
         self,
         outputs: Array(Signal(1)),

@@ -92,8 +92,10 @@ class _CRG(Module):
             )  # Idealy 90° but needs to be increased.
 
         # SDRAM clock
-        sdram_clk = ClockSignal("sys2x_ps" if sdram_rate == "1:2" else "sys_ps")
-        self.specials += DDROutput(1, 0, platform.request("sdram_clock"), sdram_clk)
+        sdram_clk = ClockSignal(
+            "sys2x_ps" if sdram_rate == "1:2" else "sys_ps")
+        self.specials += DDROutput(1, 0,
+                                   platform.request("sdram_clock"), sdram_clk)
 
 
 # BaseSoC ------------------------------------------------------------------------------------------
@@ -114,12 +116,12 @@ class BaseSoC(SoCCore):
             self,
             platform,
             sys_clk_freq,
-            cpu_type = "vexriscv",
-            cpu_variant = "minimal",
-            cpu_freq = sys_clk_freq,
+            cpu_type="vexriscv",
+            cpu_variant="minimal",
+            cpu_freq=sys_clk_freq,
             ident="LiteX SoC on Colorlight 5A-75B", ident_version=True,
-            integrated_rom_size = 0x8000,
-            integrated_ram_size = 0x4000,
+            integrated_rom_size=0x8000,
+            integrated_ram_size=0x4000,
             uart_name="serial",
             # uart_name="crossover+bridge",
             # Use with `litex_server --uart --uart-port /dev/ttyUSB1`
@@ -133,22 +135,23 @@ class BaseSoC(SoCCore):
 
         # CRG --------------------------------------------------------------------------------------
         with_rst = False
-        #kwargs["uart_name"] not in [
-            #"serial",
-            #"bridge",
-        #]  # serial_rx shared with user_btn_n.
+        # kwargs["uart_name"] not in [
+        # "serial",
+        # "bridge",
+        # ]  # serial_rx shared with user_btn_n.
         self.submodules.crg = _CRG(platform, sys_clk_freq, with_rst=with_rst)
 
         # Add hub75 connectors
         platform.add_extension(helper.hub75_conn(platform))
 
-        hub75_common = hub75.Common(
+        hub75_common = hub75.FrameController(
             platform.request("hub75_common"),
             # TODO Adjust later on
             brightness_psc=15,
         )
         self.submodules.hub75_common = hub75_common
-        pins = [platform.request("hub75_data", 1), platform.request("hub75_data", 2)]
+        pins = [platform.request("hub75_data", 1),
+                platform.request("hub75_data", 2)]
 
         # SDR SDRAM --------------------------------------------------------------------------------
         sdrphy_cls = HalfRateGENSDRPHY if sdram_rate == "1:2" else GENSDRPHY
@@ -168,14 +171,16 @@ class BaseSoC(SoCCore):
         write_port = self.sdram.crossbar.get_port(mode="write", data_width=32)
         read_port = self.sdram.crossbar.get_port(mode="read", data_width=32)
 
-        self.submodules.hub75_specific = specific = hub75.SpecificMemoryStuff(
+        self.submodules.hub75_specific = specific = hub75.RowController(
             hub75_common, pins, write_port, read_port
         )
 
         # Now add the palette memory as ram
 
-        self.submodules.palette_ram = palette_ram = SRAM(specific.palette_memory, bus=Interface(data_width=self.bus.data_width))
-        self.bus.add_slave("palette", palette_ram.bus, SoCRegion(origin=0x90000000, size=palette_ram.mem.depth, linker=True))
+        self.submodules.palette_ram = palette_ram = SRAM(
+            specific.palette_memory, bus=Interface(data_width=self.bus.data_width))
+        self.bus.add_slave("palette", palette_ram.bus, SoCRegion(
+            origin=0x90000000, size=palette_ram.mem.depth, linker=True))
 
         # Ethernet / Etherbone ---------------------------------------------------------------------
         self.submodules.ethphy = LiteEthPHYRGMII(
@@ -191,7 +196,8 @@ class BaseSoC(SoCCore):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="LiteX SoC on Colorlight 5A-75X")
+    parser = argparse.ArgumentParser(
+        description="LiteX SoC on Colorlight 5A-75X")
     builder_args(parser)
     # soc_core_args(parser)
     trellis_args(parser)
@@ -203,8 +209,10 @@ def main():
         type=str,
         help="Board revision 7.0 (default) or 6.1",
     )
-    parser.add_argument("--ip-address",  default="192.168.1.20",   help="Ethernet IP address of the board (default: 192.168.1.20).")
-    parser.add_argument("--mac-address", default="0x726b895bc2e2", help="Ethernet MAC address of the board (defaullt: 0x726b895bc2e2).")
+    parser.add_argument("--ip-address",  default="192.168.1.20",
+                        help="Ethernet IP address of the board (default: 192.168.1.20).")
+    parser.add_argument("--mac-address", default="0x726b895bc2e2",
+                        help="Ethernet MAC address of the board (defaullt: 0x726b895bc2e2).")
     parser.add_argument(
         "--eth-phy", default=0, type=int, help="Ethernet PHY 0 or 1 (default=0)"
     )
@@ -224,7 +232,8 @@ def main():
 
     if args.load:
         prog = soc.platform.create_programmer()
-        prog.load_bitstream(os.path.join(builder.gateware_dir, soc.build_name + ".svf"))
+        prog.load_bitstream(os.path.join(
+            builder.gateware_dir, soc.build_name + ".svf"))
 
 
 if __name__ == "__main__":

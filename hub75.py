@@ -10,7 +10,7 @@ import png
 sdram_offset = 0x00400000//2//4
 
 
-def _get_image_array():
+def _get_image_arrays():
     r = png.Reader(file=open("demo_img.png", "rb"))
     img = r.read()
     assert img[0] == 64
@@ -18,19 +18,18 @@ def _get_image_array():
     pixels = list(img[2])
     out_array = Array()
     for arr in pixels:
-        # Assue rgba
-        row_arr = Array()
+        # Assue rgb
         for i in range(64):
-            red = arr[i * 4 + 0]
-            green = arr[i * 4 + 1]
-            blue = arr[i * 4 + 2]
-            row_arr.append((red, green, blue))
-        out_array.append(row_arr)
-    return out_array
+            red = arr[i * 3 + 0]
+            green = arr[i * 3 + 1]
+            blue = arr[i * 3 + 2]
+            out_array.append(red | green << 8 | blue << 16)
+    palette = [0]
+    return (out_array, palette)
 
 
 def _get_indexed_image_arrays():
-    r = png.Reader(file=open("demo_img.png", "rb"))
+    r = png.Reader(file=open("demo_img_indexed.png", "rb"))
     img = r.read()
     assert img[0] == 64
     assert img[1] == 64
@@ -132,10 +131,10 @@ class FrameController(Module):
 
 class RowController(Module):
     def __init__(self, hub75_common, outputs_specific, write_port, read_port, collumns=64,):
-        img = _get_indexed_image_arrays()
+        img = _get_image_arrays()
         self.submodules.ram_initializer = RamInitializer(write_port, img)
         self.specials.palette_memory = palette_memory = Memory(
-            width=32, depth=len(img[1]), init=img[1], name="palette"
+            width=32, depth=256, init=img[1], name="palette"
         )
         row_buffers = Array()
         row_readers = Array()
@@ -257,13 +256,11 @@ class RamToBufferReader(Module):
         use_palette = Signal(1)
         self.comb += [palette_data.eq(Mux(use_palette,
                                           palette_port.dat_r, palette_data_buffer)),
-                      use_palette.eq(True),
+                      use_palette.eq(False),
+                      palette_port.adr.eq(ram_data & 0x000FF)
                       ]
         self.sync += [
-            If(ram_valid,
-               palette_data_buffer.eq(ram_data & 0x0FFFFFF),
-               palette_port.adr.eq(ram_data & 0x000FF)
-               ),
+            palette_data_buffer.eq(ram_data & 0x0FFFFFF),
             palette_data_valid.eq(ram_valid),
             If(ram_done & (~palette_data_done),
                palette_data_done.eq(True),
@@ -364,7 +361,7 @@ class RowModule(Module):
         clk: Signal(1),
         collumns: int = 64,
     ):
-        pipeline_delay = 3
+        pipeline_delay = 2
         output_delay = 16
         delay = pipeline_delay + output_delay
         counter_max = collumns * 16 + delay

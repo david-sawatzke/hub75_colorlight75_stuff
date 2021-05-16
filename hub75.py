@@ -261,8 +261,8 @@ class RamToBufferReader(Module):
                       ]
         self.sync += [
             If(ram_valid,
-               palette_data_buffer.eq(ram_data & 0x0FFF),
-               palette_port.adr.eq(ram_data & 0x000F)
+               palette_data_buffer.eq(ram_data & 0x0FFFFFF),
+               palette_port.adr.eq(ram_data & 0x000FF)
                ),
             palette_data_valid.eq(ram_valid),
             If(ram_done & (~palette_data_done),
@@ -283,8 +283,8 @@ class RamToBufferReader(Module):
             If(palette_data_valid,
                gamma_data.eq(
                    gamma_lut_r[palette_data & 0xFF]
-                   | gamma_lut_g[(palette_data >> 8) & 0xFF] << 8
-                   | gamma_lut_b[(palette_data >> 16) & 0xFF] << 16
+                   | (gamma_lut_g[(palette_data >> 8) & 0xFF] << 8)
+                   | (gamma_lut_b[(palette_data >> 16) & 0xFF] << 16)
                )
                ),
             gamma_data_valid.eq(palette_data_valid),

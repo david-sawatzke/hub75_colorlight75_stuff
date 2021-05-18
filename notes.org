@@ -75,3 +75,15 @@ For development purposes (https://github.com/enjoy-digital/litex/wiki/Load-Appli
 - Unfortunately only readable via JTAG or sspi (svf hacking, probably D:)
 ** Art-Net
 Only need ArtDMX & ArtSync packets
+* 210516
+(Also some of it done in the meantime)
+** Hub75 output
+- Add buffering, so that the text row is read while the previous one gets shifted out
+  - Reduces SDRAM by a factor of 8, much faster now
+- (Re-)add non-indexed output
+- Code cleanup & renaming
+
+* 210517
+** Output Code
+- Add notes about writing to certain memory locations for displays
+- Add some test code for background color toggle

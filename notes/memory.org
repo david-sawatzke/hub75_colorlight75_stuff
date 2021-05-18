@@ -1,0 +1,33 @@
+#+TITLE: Memory
+* Clipping of modifications
+#+begin_src
+litex> mem_write 0x40000004 0x4d
+
+litex> flush_l2_cache
+
+litex> mem_write 0x40000000 0x4d
+
+litex> flush_l2_cache
+
+litex> mem_write 0x40000008 0x4d
+
+litex> flush_l2_cache
+
+litex> mem_write 0x4000000C 0x4d
+
+litex> flush_l2_cache
+
+litex> mem_write 0x40000010 0x4d
+
+litex> flush_l2_cache
+
+litex> mem_write 0x90000000 0xFF
+
+litex> mem_write 0x90000000 0x0
+
+litex> mem_write 0x90000001 0xFF
+# Borked
+#+end_src
+
+Writes hang on non-alinged adresses. Writes to SDRAM need a flush of the l2 cache.
+(This is with indexed colors, image data put at the beginning of sdram)

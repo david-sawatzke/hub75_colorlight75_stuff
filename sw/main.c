@@ -66,10 +66,19 @@ static void help(void) {
   puts("help                            - this command");
   puts("reboot                          - reboot CPU");
   puts("display                         - display test");
-  puts("led                             - led test");
 }
 
 static void reboot(void) { ctrl_reset_write(1); }
+
+static void display(void) {
+  volatile uint32_t *palette0 = (volatile uint32_t *)0x90000000;
+
+  if (*palette0 == 0) {
+    *palette0 = 0xFF0088;
+  } else {
+    *palette0 = 0x000000;
+  }
+}
 
 static void console_service(void) {
   char *str;
@@ -83,6 +92,8 @@ static void console_service(void) {
     help();
   else if (strcmp(token, "reboot") == 0)
     reboot();
+  else if (strcmp(token, "display") == 0)
+    display();
   prompt();
 }
 

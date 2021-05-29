@@ -147,7 +147,7 @@ class BaseSoC(SoCCore):
         hub75_common = hub75.FrameController(
             platform.request("hub75_common"),
             # TODO Adjust later on
-            brightness_psc=15,
+            brightness_psc=8,
         )
         self.submodules.hub75_common = hub75_common
         pins = [platform.request("hub75_data", 1),

@@ -5,6 +5,7 @@
 #include <console.h>
 #include <generated/csr.h>
 #include <irq.h>
+#include <system.h>
 #include <uart.h>
 
 static char *readstr(void) {
@@ -66,6 +67,7 @@ static void help(void) {
   puts("help                            - this command");
   puts("reboot                          - reboot CPU");
   puts("display                         - display test");
+  puts("write [adr] [dat]               - write data");
 }
 
 static void reboot(void) { ctrl_reset_write(1); }
@@ -94,6 +96,14 @@ static void console_service(void) {
     reboot();
   else if (strcmp(token, "display") == 0)
     display();
+  else if (strcmp(token, "write") == 0) {
+    char *endptr;
+    uint32_t adr = strtol(get_token(&str), &endptr, 16);
+    uint32_t dat = strtol(get_token(&str), &endptr, 16);
+    volatile uint32_t *ptr = (volatile uint32_t *)adr;
+    *ptr = dat;
+    flush_l2_cache();
+  }
   prompt();
 }
 

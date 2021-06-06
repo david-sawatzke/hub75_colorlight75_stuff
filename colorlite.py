@@ -36,6 +36,11 @@ from liteeth.phy.ecp5rgmii import LiteEthPHYRGMII
 
 from litex.build.generic_platform import Subsignal, Pins, Misc, IOStandard
 
+from litespi.modules import GD25Q16
+from litespi.opcodes import SpiNorFlashOpCodes as Codes
+from litespi.phy.generic import LiteSPIPHY
+from litespi import LiteSPI
+
 import hub75
 
 import helper
@@ -120,13 +125,33 @@ class BaseSoC(SoCCore):
             cpu_variant="minimal",
             cpu_freq=sys_clk_freq,
             ident="LiteX SoC on Colorlight 5A-75B", ident_version=True,
-            integrated_rom_size=0x8000,
+            integrated_rom_size=0x10000,
             integrated_ram_size=0x4000,
             uart_name="serial",
             # uart_name="crossover+bridge",
             # Use with `litex_server --uart --uart-port /dev/ttyUSB1`
             uart_baudrate=115200,
         )
+        # Spi Flash TODO Only for v6.1, replace with W25Q32JV for later
+        flash = GD25Q16(Codes.READ_1_1_1)
+        self.submodules.spiflash_phy    = LiteSPIPHY(
+            pads    = platform.request("spiflash"),
+            flash   = flash,
+            device  = platform.device)
+        self.submodules.spiflash_mmap   = LiteSPI(
+            phy             = self.spiflash_phy,
+            clk_freq        = sys_clk_freq,
+            mmap_endianness = self.cpu.endianness)
+        self.add_csr("spiflash_mmap")
+        self.add_csr("spiflash_phy")
+        spiflash_region = SoCRegion(
+            origin  = self.mem_map.get("spiflash", None),
+            size    = flash.total_size,
+            cached  = False)
+        self.bus.add_slave(
+            name    = "spiflash",
+            slave   = self.spiflash_mmap.bus,
+            region  = spiflash_region)
 
         # TODO Remove this
         # Reduce memtest size to avoid walking over image data

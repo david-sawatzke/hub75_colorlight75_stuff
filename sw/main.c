@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "img_utils.h"
 #include <console.h>
 #include <generated/csr.h>
 #include <irq.h>
@@ -112,6 +113,7 @@ int main(void) {
   irq_setmask(0);
   irq_setie(1);
 #endif
+  init_img_from_header();
   uart_init();
 
   puts("\nLab004 - CPU testing software built "__DATE__

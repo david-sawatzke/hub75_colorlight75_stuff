@@ -8,6 +8,7 @@ import png
 
 
 sdram_offset = 0x00400000//2//4
+#              0x00200000
 
 
 def _get_image_arrays():
@@ -131,8 +132,7 @@ class FrameController(Module):
 
 class RowController(Module):
     def __init__(self, hub75_common, outputs_specific, write_port, read_port, collumns=64,):
-        img = _get_image_arrays()
-        self.submodules.ram_initializer = RamInitializer(write_port, img)
+        img = _get_indexed_image_arrays()
         self.specials.palette_memory = palette_memory = Memory(
             width=32, depth=256, init=img[1], name="palette"
         )
@@ -256,7 +256,7 @@ class RamToBufferReader(Module):
         use_palette = Signal(1)
         self.comb += [palette_data.eq(Mux(use_palette,
                                           palette_port.dat_r, palette_data_buffer)),
-                      use_palette.eq(False),
+                      use_palette.eq(True),
                       palette_port.adr.eq(ram_data & 0x000FF)
                       ]
         self.sync += [
@@ -397,26 +397,6 @@ class RowModule(Module):
             .Elif((counter > 0),
                   counter.eq(counter + 1)),
             shifting_done.eq(counter == (counter_max - 1))
-        ]
-
-
-# Should be replaced with cpu code in the future
-class RamInitializer(Module):
-    def __init__(self, write_port, img):
-        img_data = Array(img[0])
-        img_counter = Signal(max=len(img_data) + 1)
-        self.submodules.writer = writer = LiteDRAMDMAWriter(write_port)
-        # FIXME: Final adress might not be written properly
-        self.sync += [
-            If(
-                img_counter != len(img_data),
-                writer.sink.valid.eq(True),
-                If(writer.sink.ready | (img_counter == 0),
-                    img_counter.eq(img_counter + 1),
-                    writer.sink.address.eq(sdram_offset + img_counter),
-                    writer.sink.data.eq(img_data[img_counter]),  # << 24 | 0),
-                   ),)
-            .Else(writer.sink.valid.eq(False)),
         ]
 
 

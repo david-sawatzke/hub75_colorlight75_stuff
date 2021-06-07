@@ -135,6 +135,8 @@ class RowController(Module):
         self.specials.palette_memory = palette_memory = Memory(
             width=32, depth=256, name="palette"
         )
+
+        use_palette = Signal()
         row_buffers = Array()
         row_readers = Array()
         row_writers = Array()
@@ -153,7 +155,7 @@ class RowController(Module):
         shifting_buffer = Signal()
         mem_start = Signal()
         self.submodules.buffer_reader = RamToBufferReader(
-            mem_start, (hub75_common.row_select + 1) & 0xF, read_port,
+            mem_start, (hub75_common.row_select + 1) & 0xF, use_palette, read_port,
             row_writers[~shifting_buffer], palette_memory, collumns)
 
         row_start = Signal()
@@ -194,7 +196,9 @@ class RowController(Module):
                 ~(running | hub75_common.start_shifting)),
         ]
 
-        self.sync += []
+        self.sync += [
+            use_palette.eq(True),
+            ]
 
 
 class RamToBufferReader(Module):
@@ -202,6 +206,7 @@ class RamToBufferReader(Module):
             self,
             start: Signal(1),
             row: Signal(4),
+            use_palette: Signal(1),
             mem_read_port,
             buffer_write_port,
             palette_memory,
@@ -252,10 +257,8 @@ class RamToBufferReader(Module):
         palette_data_valid = Signal()
         palette_data = Signal(24)
         palette_data_buffer = Signal(24)
-        use_palette = Signal(1)
         self.comb += [palette_data.eq(Mux(use_palette,
                                           palette_port.dat_r, palette_data_buffer)),
-                      use_palette.eq(True),
                       palette_port.adr.eq(ram_data & 0x000FF)
                       ]
         self.sync += [

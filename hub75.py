@@ -132,9 +132,8 @@ class FrameController(Module):
 
 class RowController(Module):
     def __init__(self, hub75_common, outputs_specific, write_port, read_port, collumns=64,):
-        img = _get_indexed_image_arrays()
         self.specials.palette_memory = palette_memory = Memory(
-            width=32, depth=256, init=img[1], name="palette"
+            width=32, depth=256, name="palette"
         )
         row_buffers = Array()
         row_readers = Array()

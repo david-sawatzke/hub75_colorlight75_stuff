@@ -2,6 +2,7 @@
 
 import png
 
+
 def _get_indexed_image_arrays():
     r = png.Reader(file=open("../demo_img_indexed.png", "rb"))
     img = r.read()
@@ -22,7 +23,8 @@ def _get_indexed_image_arrays():
         palette.append(a[0] | a[1] << 8 | a[2] << 16)
     return (out_array, palette)
 
-img =_get_indexed_image_arrays()
+
+img = _get_indexed_image_arrays()
 
 f = open("img_indexed.c", "w")
 f.write("#include <stdint.h>\n")
@@ -39,4 +41,19 @@ for data_byte in img[0]:
 f.write("};")
 
 f.write("uint32_t img_data_len = " + hex(len(img[0])) + ";")
+
+f.write("uint32_t palette_data[] = {")
+first_byte = True
+for data_byte in img[1]:
+    if first_byte:
+        f.write(hex(data_byte) + "\n")
+        first_byte = False
+    else:
+        f.write("   ," + hex(data_byte) + "\n")
+
+
+f.write("};")
+
+f.write("uint32_t palette_data_len = " + hex(len(img[1])) + ";")
+
 f.close()

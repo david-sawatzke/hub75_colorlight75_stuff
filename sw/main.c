@@ -104,6 +104,8 @@ static void console_service(void) {
     volatile uint32_t *ptr = (volatile uint32_t *)adr;
     *ptr = dat;
     flush_l2_cache();
+  } else {
+    puts("Command not available!");
   }
   prompt();
 }

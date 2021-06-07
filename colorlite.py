@@ -205,7 +205,7 @@ class BaseSoC(SoCCore):
         self.submodules.palette_ram = palette_ram = SRAM(
             specific.palette_memory, bus=Interface(data_width=self.bus.data_width))
         self.bus.add_slave("palette", palette_ram.bus, SoCRegion(
-            origin=0x90000000, size=palette_ram.mem.depth, linker=True))
+            origin=0x90000000, size=(palette_ram.mem.depth*4), linker=True))
 
         # Ethernet / Etherbone ---------------------------------------------------------------------
         self.submodules.ethphy = LiteEthPHYRGMII(

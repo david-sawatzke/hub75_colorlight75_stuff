@@ -153,11 +153,6 @@ class BaseSoC(SoCCore):
             slave   = self.spiflash_mmap.bus,
             region  = spiflash_region)
 
-        # TODO Remove this
-        # Reduce memtest size to avoid walking over image data
-        self.add_constant("MEMTEST_DATA_SIZE", 0)
-        self.add_constant("MEMTEST_ADDR_SIZE", 0)
-
         # CRG --------------------------------------------------------------------------------------
         with_rst = False
         # kwargs["uart_name"] not in [

@@ -2,11 +2,8 @@
 # Protocol description https://fw.hardijzer.nl/?p=223
 # Using binary code modulation (http://www.batsocks.co.uk/readme/art_bcm_1.htm)
 from migen import If, Signal, Array, Memory, Module, FSM, NextValue, NextState, Mux
-from migen.genlib.fifo import SyncFIFO
 from litex.soc.interconnect.csr import AutoCSR, CSRStorage, CSRField
 from litedram.frontend.dma import LiteDRAMDMAReader
-import png
-
 
 sdram_offset = 0x00400000//2//4
 #              0x00200000

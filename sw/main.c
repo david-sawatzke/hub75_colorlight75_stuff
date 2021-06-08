@@ -68,13 +68,15 @@ static void help(void) {
   puts("help                            - this command");
   puts("reboot                          - reboot CPU");
   puts("display                         - display test");
+  puts("load                            - load normal image");
+  puts("load_indexed                    - load indexed image");
   puts("write [adr] [dat]               - write data");
 }
 
 static void reboot(void) { ctrl_reset_write(1); }
 
 static void display(void) {
-  volatile uint32_t *palette0 = (volatile uint32_t *)0x90000000;
+  volatile uint32_t *palette0 = (volatile uint32_t *)CSR_HUB75_PALETTE_BASE;
 
   if (*palette0 == 0) {
     *palette0 = 0xFF0088;
@@ -97,6 +99,10 @@ static void console_service(void) {
     reboot();
   else if (strcmp(token, "display") == 0)
     display();
+  else if (strcmp(token, "load") == 0)
+    init_img_from_header();
+  else if (strcmp(token, "load_indexed") == 0)
+    init_img_indexed_from_header();
   else if (strcmp(token, "write") == 0) {
     char *endptr;
     uint32_t adr = strtol(get_token(&str), &endptr, 16);

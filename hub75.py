@@ -30,45 +30,6 @@ class Hub75(Module, AutoCSR):
         self.palette_memory = self.specific.palette_memory
 
 
-def _get_image_arrays():
-    r = png.Reader(file=open("demo_img.png", "rb"))
-    img = r.read()
-    assert img[0] == 64
-    assert img[1] == 64
-    pixels = list(img[2])
-    out_array = Array()
-    for arr in pixels:
-        # Assue rgb
-        for i in range(64):
-            red = arr[i * 3 + 0]
-            green = arr[i * 3 + 1]
-            blue = arr[i * 3 + 2]
-            out_array.append(red | green << 8 | blue << 16)
-    palette = [0]
-    return (out_array, palette)
-
-
-def _get_indexed_image_arrays():
-    r = png.Reader(file=open("demo_img_indexed.png", "rb"))
-    img = r.read()
-    assert img[0] == 64
-    assert img[1] == 64
-    pixels = list(img[2])
-    out_array = Array()
-    # Get image data
-    for arr in pixels:
-        for i in range(64):
-            out_array.append(arr[i])
-    # Get palette data
-    # rgbrgbrgb
-    palette = []
-    # Probably rgb?
-    png_palette = img[3]["palette"]
-    for a in png_palette:
-        palette.append(a[0] | a[1] << 8 | a[2] << 16)
-    return (out_array, palette)
-
-
 # Taken from https://learn.adafruit.com/led-tricks-gamma-correction/the-longer-fix
 def _get_gamma_corr(bits_in=8, bits_out=8):
     gamma = 2.8

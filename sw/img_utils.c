@@ -1,16 +1,16 @@
 #include "img_utils.h"
-#include "img_indexed.h"
+#include "img_data.h"
 #include <generated/csr.h>
 #include <generated/mem.h>
 #include <stdint.h>
 #include <system.h>
 
-void init_img_from_header(void) {
+void init_img_indexed_from_header(void) {
   volatile uint32_t *sdram_img_base =
       (volatile uint32_t *)(MAIN_RAM_BASE + (MAIN_RAM_SIZE / 2));
-  for (uint32_t i = 0; i < img_data_len; i++) {
+  for (uint32_t i = 0; i < img_indexed_data_len; i++) {
     // The byteorder is weird TODO fix in gateware
-    *(sdram_img_base + i) = img_data[i ^ 0b11];
+    *(sdram_img_base + i) = img_indexed_data[i ^ 0b11];
   }
 
   // Next up, init the palette
@@ -23,4 +23,18 @@ void init_img_from_header(void) {
 
   // Enable indexed mode
   hub75_ctrl_indexed_write(1);
+}
+
+void init_img_from_header(void) {
+  volatile uint32_t *sdram_img_base =
+      (volatile uint32_t *)(MAIN_RAM_BASE + (MAIN_RAM_SIZE / 2));
+  for (uint32_t i = 0; i < img_data_len; i++) {
+    // The byteorder is weird TODO fix in gateware
+    *(sdram_img_base + i) = img_data[i ^ 0b11];
+  }
+
+  flush_l2_cache();
+
+  // Disable indexed mode
+  hub75_ctrl_indexed_write(0);
 }

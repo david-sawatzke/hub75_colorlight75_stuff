@@ -4,6 +4,9 @@
 extern uint32_t img_data[];
 extern uint32_t img_data_len;
 
+extern uint32_t img_indexed_data[];
+extern uint32_t img_indexed_data_len;
+
 extern uint32_t palette_data[];
 extern uint32_t palette_data_len;
 

@@ -205,14 +205,15 @@ class BaseSoC(SoCCore):
         self.bus.add_slave("palette", palette_ram.bus, SoCRegion(
             origin=0x90000000, size=(palette_ram.mem.depth*4), linker=True))
 
+        # Disable ethernet for now
         # Ethernet / Etherbone ---------------------------------------------------------------------
-        self.submodules.ethphy = LiteEthPHYRGMII(
-            clock_pads=self.platform.request("eth_clocks"),
-            pads=self.platform.request("eth"),
-        )
-        self.add_csr("ethphy")
-        self.add_ethernet(phy=self.ethphy)
-        self.add_etherbone(phy=self.ethphy)
+        # self.submodules.ethphy = LiteEthPHYRGMII(
+        #     clock_pads=self.platform.request("eth_clocks"),
+        #     pads=self.platform.request("eth"),
+        # )
+        # self.add_csr("ethphy")
+        # self.add_ethernet(phy=self.ethphy)
+        # self.add_etherbone(phy=self.ethphy)
 
 
 # Build --------------------------------------------------------------------------------------------

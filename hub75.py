@@ -25,7 +25,7 @@ class Hub75(Module, AutoCSR):
             brightness_psc=8,
         )
         self.submodules.specific = RowController(
-            self.common, pins, read_port
+            self.common, pins, self.ctrl.fields.indexed, read_port
         )
         self.palette_memory = self.specific.palette_memory
 
@@ -150,12 +150,11 @@ class FrameController(Module):
 
 
 class RowController(Module):
-    def __init__(self, hub75_common, outputs_specific, read_port, collumns=64,):
+    def __init__(self, hub75_common, outputs_specific, use_palette, read_port, collumns=64,):
         self.specials.palette_memory = palette_memory = Memory(
             width=32, depth=256, name="palette"
         )
 
-        use_palette = Signal()
         row_buffers = Array()
         row_readers = Array()
         row_writers = Array()
@@ -215,9 +214,7 @@ class RowController(Module):
                 ~(running | hub75_common.start_shifting)),
         ]
 
-        self.sync += [
-            use_palette.eq(True),
-            ]
+        self.sync += []
 
 
 class RamToBufferReader(Module):

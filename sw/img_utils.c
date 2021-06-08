@@ -20,4 +20,7 @@ void init_img_from_header(void) {
   }
 
   flush_l2_cache();
+
+  // Enable indexed mode
+  hub75_ctrl_indexed_write(1);
 }

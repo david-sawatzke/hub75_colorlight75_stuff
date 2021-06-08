@@ -131,7 +131,7 @@ class FrameController(Module):
 
 
 class RowController(Module):
-    def __init__(self, hub75_common, outputs_specific, write_port, read_port, collumns=64,):
+    def __init__(self, hub75_common, outputs_specific, read_port, collumns=64,):
         self.specials.palette_memory = palette_memory = Memory(
             width=32, depth=256, name="palette"
         )

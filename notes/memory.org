@@ -31,3 +31,15 @@ litex> mem_write 0x90000001 0xFF
 
 Writes hang on non-alinged adresses. Writes to SDRAM need a flush of the l2 cache.
 (This is with indexed colors, image data put at the beginning of sdram)
+* Layout of img
+A pixel is always 32 bits, no matter if indexed or not. If indexed, the upper 8 bits are used, if not the lower 24 are.
+The basic parameters are width, height and if it's indexed or not. It's basically an array of arrays.
+* Configure the panels
+Global Parameters: Width, Indexed, Enabled
+Parameters per Panel: 32x32 Grid. Vertical or Horizontal layout, Vertical or Horizontal Offset, 8 bit size
+** Registers
+Width: 16 Bits
+| EN | In | ... | Width (16) |
+Then per Output a 32 bit Register.
+| EN | Vert | ... | x (8) | y (8) |
+There are 5 * 8 registers, each chain is consecutive in memory followed by the next one.

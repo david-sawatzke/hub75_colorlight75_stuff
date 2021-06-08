@@ -87,3 +87,33 @@ Only need ArtDMX & ArtSync packets
 ** Output Code
 - Add notes about writing to certain memory locations for displays
 - Add some test code for background color toggle
+* 210606
+** SPI Flash
+After discovering that the gateware doesn't build for v6.1, due to the pin not being directly usable, I tried usrmclk that other boards use and that fixed it.
+https://github.com/litex-hub/litex-boards/issues/148
+PR fixing it:
+- https://github.com/litex-hub/litex-boards/pull/223
+New memory region listing
+#+BEGIN_SRC
+litex> mem_list
+Available memory regions:
+ROM       0x00000000 0x10000
+SRAM      0x10000000 0x2000
+SPIFLASH  0x80000000 0x200000
+MAIN_RAM  0x40000000 0x400000
+PALETTE   0x90000000 0x100
+ETHMAC    0x80200000 0x2000
+CSR       0xf0000000 0x10000
+#+END_SRC
+
+*** Read Data with wishbone
+~wishbone-tool --csr-csv csr.csv 0x80000000 -u /dev/ttyUSB1 --hexdump~
+
+Maybe add ~--burst-length~ to dump more? (Doesn't work for some reason)
+
+Added ~wb_rom_dump.py~ script to create a backup of the flash
+* 210607
+** Image init
+- Indexed Image & Palette from SDRAM
+** Boot from Flash
+https://github.com/timvideos/litex-buildenv/wiki/Bare-Metal

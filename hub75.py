@@ -13,14 +13,19 @@ sdram_offset = 0x00400000//2//4
 
 
 class Hub75(Module, AutoCSR):
-    def __init__(self, hub75_common, pins, sdram):
+    def __init__(self, pins_common, pins, sdram):
         # Registers
         self.ctrl = CSRStorage(1, fields=[CSRField("indexed", description="Display an indexed image")])
 
         read_port = sdram.crossbar.get_port(mode="read", data_width=32)
 
+        self.submodules.common = FrameController(
+            pins_common,
+            # TODO Adjust later on
+            brightness_psc=8,
+        )
         self.submodules.specific = RowController(
-            hub75_common, pins, read_port
+            self.common, pins, read_port
         )
 
 

@@ -166,18 +166,6 @@ class BaseSoC(SoCCore):
         # ]  # serial_rx shared with user_btn_n.
         self.submodules.crg = _CRG(platform, sys_clk_freq, with_rst=with_rst)
 
-        # Add hub75 connectors
-        platform.add_extension(helper.hub75_conn(platform))
-
-        hub75_common = hub75.FrameController(
-            platform.request("hub75_common"),
-            # TODO Adjust later on
-            brightness_psc=8,
-        )
-        self.submodules.hub75_common = hub75_common
-        pins = [platform.request("hub75_data", 1),
-                platform.request("hub75_data", 2)]
-
         # SDR SDRAM --------------------------------------------------------------------------------
         sdrphy_cls = HalfRateGENSDRPHY if sdram_rate == "1:2" else GENSDRPHY
         self.submodules.sdrphy = sdrphy_cls(platform.request("sdram"))
@@ -192,7 +180,13 @@ class BaseSoC(SoCCore):
             l2_cache_size=128,
         )
 
-        self.submodules.hub75 = hub75.Hub75(hub75_common, pins, self.sdram)
+        # Add hub75 connectors
+        platform.add_extension(helper.hub75_conn(platform))
+        pins_common = platform.request("hub75_common")
+        pins = [platform.request("hub75_data", 1),
+                platform.request("hub75_data", 2)]
+
+        self.submodules.hub75 = hub75.Hub75(pins_common, pins, self.sdram)
 
         # Now add the palette memory as ram
         self.submodules.palette_ram = palette_ram = SRAM(

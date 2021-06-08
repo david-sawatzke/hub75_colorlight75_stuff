@@ -3,12 +3,25 @@
 # Using binary code modulation (http://www.batsocks.co.uk/readme/art_bcm_1.htm)
 from migen import If, Signal, Array, Memory, Module, FSM, NextValue, NextState, Mux
 from migen.genlib.fifo import SyncFIFO
-from litedram.frontend.dma import LiteDRAMDMAWriter, LiteDRAMDMAReader
+from litex.soc.interconnect.csr import AutoCSR, CSRStorage, CSRField
+from litedram.frontend.dma import LiteDRAMDMAReader
 import png
 
 
 sdram_offset = 0x00400000//2//4
 #              0x00200000
+
+
+class Hub75(Module, AutoCSR):
+    def __init__(self, hub75_common, pins, sdram):
+        # Registers
+        self.ctrl = CSRStorage(1, fields=[CSRField("indexed", description="Display an indexed image")])
+
+        read_port = sdram.crossbar.get_port(mode="read", data_width=32)
+
+        self.submodules.specific = RowController(
+            hub75_common, pins, read_port
+        )
 
 
 def _get_image_arrays():

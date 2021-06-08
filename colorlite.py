@@ -192,16 +192,11 @@ class BaseSoC(SoCCore):
             l2_cache_size=128,
         )
 
-        read_port = self.sdram.crossbar.get_port(mode="read", data_width=32)
-
-        self.submodules.hub75_specific = specific = hub75.RowController(
-            hub75_common, pins, read_port
-        )
+        self.submodules.hub75 = hub75.Hub75(hub75_common, pins, self.sdram)
 
         # Now add the palette memory as ram
-
         self.submodules.palette_ram = palette_ram = SRAM(
-            specific.palette_memory, bus=Interface(data_width=self.bus.data_width))
+            self.hub75.specific.palette_memory, bus=Interface(data_width=self.bus.data_width))
         self.bus.add_slave("palette", palette_ram.bus, SoCRegion(
             origin=0x90000000, size=(palette_ram.mem.depth*4), linker=True))
 

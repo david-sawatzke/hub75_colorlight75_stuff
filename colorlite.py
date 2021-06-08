@@ -183,12 +183,6 @@ class BaseSoC(SoCCore):
 
         self.submodules.hub75 = hub75.Hub75(pins_common, pins, self.sdram)
 
-        # Now add the palette memory as ram
-        self.submodules.palette_ram = palette_ram = SRAM(
-            self.hub75.specific.palette_memory, bus=Interface(data_width=self.bus.data_width))
-        self.bus.add_slave("palette", palette_ram.bus, SoCRegion(
-            origin=0x90000000, size=(palette_ram.mem.depth*4), linker=True))
-
         # Disable ethernet for now
         # Ethernet / Etherbone ---------------------------------------------------------------------
         # self.submodules.ethphy = LiteEthPHYRGMII(

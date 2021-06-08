@@ -1,5 +1,6 @@
 #include "img_utils.h"
 #include "img_indexed.h"
+#include <generated/csr.h>
 #include <generated/mem.h>
 #include <stdint.h>
 #include <system.h>
@@ -13,7 +14,7 @@ void init_img_from_header(void) {
   }
 
   // Next up, init the palette
-  volatile uint32_t *palette_base = (volatile uint32_t *)PALETTE_BASE;
+  volatile uint32_t *palette_base = (volatile uint32_t *)CSR_HUB75_PALETTE_BASE;
   for (uint32_t i = 0; i < palette_data_len; i++) {
     *(palette_base + i) = palette_data[i];
   }

@@ -27,6 +27,7 @@ class Hub75(Module, AutoCSR):
         self.submodules.specific = RowController(
             self.common, pins, read_port
         )
+        self.palette_memory = self.specific.palette_memory
 
 
 def _get_image_arrays():

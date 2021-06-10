@@ -1,9 +1,16 @@
-#include "img_utils.h"
 #include "img_data.h"
+#include "img_utils.h"
 #include <generated/csr.h>
 #include <generated/mem.h>
 #include <stdint.h>
 #include <system.h>
+
+void set_common_params(void);
+
+void set_common_params(void) {
+  hub75_ctrl_enabled_write(1);
+  hub75_ctrl_width_write(64);
+}
 
 void init_img_indexed_from_header(void) {
   volatile uint32_t *sdram_img_base =
@@ -23,7 +30,7 @@ void init_img_indexed_from_header(void) {
 
   // Enable indexed mode
   hub75_ctrl_indexed_write(1);
-  hub75_ctrl_enabled_write(1);
+  set_common_params();
 }
 
 void init_img_from_header(void) {
@@ -38,5 +45,5 @@ void init_img_from_header(void) {
 
   // Disable indexed mode
   hub75_ctrl_indexed_write(0);
-  hub75_ctrl_enabled_write(1);
+  set_common_params();
 }

@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 # Protocol description https://fw.hardijzer.nl/?p=223
 # Using binary code modulation (http://www.batsocks.co.uk/readme/art_bcm_1.htm)
+from types import SimpleNamespace
+
 from migen import If, Signal, Array, Memory, Module, FSM, NextValue, NextState, Mux
 from litex.soc.interconnect.csr import AutoCSR, CSRStorage, CSRField
 from litedram.frontend.dma import LiteDRAMDMAReader
@@ -12,14 +14,16 @@ sdram_offset = 0x00400000//2//4
 class Hub75(Module, AutoCSR):
     def __init__(self, pins_common, pins, sdram):
         # Registers
-        self.ctrl = CSRStorage(1,
-                fields =[
-                    CSRField("indexed", description="Display an indexed image"),
-                    CSRField("enabled", description="Enable the output"),
-                    ])
+        self.ctrl = CSRStorage(1, fields=[
+            CSRField("indexed", description="Display an indexed image"),
+            CSRField("enabled", description="Enable the output"),
+            CSRField("width", description="Width of the image", size=16),
+        ])
 
         read_port = sdram.crossbar.get_port(mode="read", data_width=32)
-
+        output_config = SimpleNamespace(
+            indexed=self.ctrl.fields.indexed, width=self.ctrl.fields.width
+        )
         self.submodules.common = FrameController(
             pins_common,
             self.ctrl.fields.enabled,
@@ -27,7 +31,7 @@ class Hub75(Module, AutoCSR):
             brightness_psc=8,
         )
         self.submodules.specific = RowController(
-            self.common, pins, self.ctrl.fields.indexed, read_port
+            self.common, pins, output_config, read_port
         )
         self.palette_memory = self.specific.palette_memory
 
@@ -113,7 +117,7 @@ class FrameController(Module):
 
 
 class RowController(Module):
-    def __init__(self, hub75_common, outputs_specific, use_palette, read_port, collumns=64,):
+    def __init__(self, hub75_common, outputs_specific, output_config, read_port, collumns=64):
         self.specials.palette_memory = palette_memory = Memory(
             width=32, depth=256, name="palette"
         )
@@ -136,7 +140,8 @@ class RowController(Module):
         shifting_buffer = Signal()
         mem_start = Signal()
         self.submodules.buffer_reader = RamToBufferReader(
-            mem_start, (hub75_common.row_select + 1) & 0xF, use_palette, read_port,
+            mem_start, (hub75_common.row_select + 1) & 0xF,
+            output_config.indexed, output_config.width, read_port,
             row_writers[~shifting_buffer], palette_memory, collumns)
 
         row_start = Signal()
@@ -186,6 +191,7 @@ class RamToBufferReader(Module):
             start: Signal(1),
             row: Signal(4),
             use_palette: Signal(1),
+            image_width: Signal(16),
             mem_read_port,
             buffer_write_port,
             palette_memory,
@@ -202,7 +208,7 @@ class RamToBufferReader(Module):
         # RAM Reader
         self.submodules.reader = LiteDRAMDMAReader(mem_read_port)
         self.submodules.ram_adr = RamAddressGenerator(
-            start, self.reader.sink.ready, row, collumns)
+            start, self.reader.sink.ready, row, image_width, collumns)
 
         ram_valid = self.reader.source.valid
         ram_data = self.reader.source.data
@@ -298,6 +304,7 @@ class RamAddressGenerator(Module):
         start: Signal(1),
         enable: Signal(1),
         row: Signal(4),
+        image_width: Signal(16),
         collumns: int = 64,
     ):
         self.counter = Signal(max=collumns * 16)
@@ -330,7 +337,7 @@ class RamAddressGenerator(Module):
                 self.counter_select < 4,
                 self.adr.eq(
                     sdram_offset + (row + self.counter_select *
-                                    16) * collumns + self.collumn
+                                    16) * image_width + self.collumn
                 ))
         ]
 

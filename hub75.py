@@ -126,16 +126,24 @@ class RowController(Module):
         row_readers = Array()
         row_writers = Array()
         for _ in range(2):
-            row_buffer = Memory(
-                # width=32, depth=512,
-                width=32, depth=collumns * 16,
-            )
-            row_writer = row_buffer.get_port(write_capable=True)
-            row_reader = row_buffer.get_port()
-            row_buffers.append(row_buffer)
-            row_readers.append(row_reader)
-            row_writers.append(row_writer)
-            self.specials += [row_buffer, row_reader, row_writer]
+            row_buffers_outputs = []
+            row_readers_outputs = []
+            row_writers_outputs = Array()
+            # TODO Change this later on, if the memory is needed
+            # A quarter is not needed and (somewhat) easily used
+            for _ in range(8):
+                row_buffer = Memory(
+                    width=32, depth=collumns * 2,
+                )
+                row_writer = row_buffer.get_port(write_capable=True)
+                row_reader = row_buffer.get_port()
+                row_buffers_outputs.append(row_buffer)
+                row_readers_outputs.append(row_reader)
+                row_writers_outputs.append(row_writer)
+                self.specials += [row_buffer, row_reader, row_writer]
+            row_buffers.append(row_buffers_outputs)
+            row_readers.append(row_readers_outputs)
+            row_writers.append(row_writers_outputs)
 
         shifting_buffer = Signal()
         mem_start = Signal()
@@ -149,9 +157,8 @@ class RowController(Module):
             row_start, hub75_common.clk, collumns
         )
 
-        data = Signal(32)
-        self.submodules.specific = Output(
-            hub75_common, outputs_specific, data)
+        self.submodules.specific = Output(hub75_common, outputs_specific,
+                        row_readers[shifting_buffer], self.row_module.counter)
         running = Signal()
 
         self.submodules.fsm = fsm = FSM(reset_state="IDLE")
@@ -167,10 +174,8 @@ class RowController(Module):
                 )
         fsm.act("SHIFT_OUT",
                 running.eq(True),
-                row_readers[shifting_buffer].adr.eq(
-                    self.row_module.counter),
-                data.eq(row_readers[shifting_buffer].dat_r),
-                If((hub75_common.bit == 0) & self.row_module.shifting_done & self.buffer_reader.done,
+                If((hub75_common.bit == 0) & self.row_module.shifting_done
+                   & self.buffer_reader.done,
                    NextValue(shifting_buffer, ~shifting_buffer),
                    NextState("IDLE")),
                 If((hub75_common.bit != 0) & self.row_module.shifting_done,
@@ -231,7 +236,6 @@ class RamToBufferReader(Module):
             )
             .Else(
                 self.reader.source.ready.eq(True),
-                buffer_write_port.we.eq(False),
             ),
         ]
 
@@ -281,16 +285,29 @@ class RamToBufferReader(Module):
 
         # Buffer Writer
         buffer_done = Signal()
+        buffer_counter = Signal(collumns * 8 * 2)
+        buffer_select = Signal(3)
+        buffer_address = Signal(collumns * 2)
+
+        for i in range(8):
+            self.sync += [
+               buffer_write_port[i].dat_w.eq(gamma_data),
+               buffer_write_port[i].adr.eq(buffer_address),
+            ]
+        self.comb += [
+            buffer_address.eq(((buffer_counter >> 4) << 1)
+                              | (buffer_counter & 0b1)),
+            buffer_select.eq((buffer_counter >> 1) & 0b111)
+            ]
         self.sync += [
             If(gamma_data_valid,
-               buffer_write_port.we.eq(True),
-               buffer_write_port.dat_w.eq(gamma_data),
-               buffer_write_port.adr.eq(buffer_write_port.adr + 1),
-               )
+               buffer_write_port[buffer_select - 1].we.eq(False),
+               buffer_write_port[buffer_select].we.eq(True),
+               buffer_counter.eq(buffer_counter + 1),)
             .Elif(gamma_data_done & (~buffer_done),
+                  buffer_write_port[buffer_select - 1].we.eq(False),
                   buffer_done.eq(True),
-                  buffer_write_port.we.eq(False),
-                  buffer_write_port.adr.eq(~0),
+                  buffer_counter.eq(0),
                   running.eq(False),)
             .Else(
                 buffer_done.eq(gamma_data_done)
@@ -350,15 +367,15 @@ class RowModule(Module):
         collumns: int = 64,
     ):
         pipeline_delay = 2
-        output_delay = 16
+        output_delay = 2
         delay = pipeline_delay + output_delay
-        counter_max = collumns * 16 + delay
+        counter_max = collumns * 2 + delay
         self.counter = counter = Signal(max=counter_max)
-        self.counter_select = counter_select = Signal(4)
+        self.counter_select = counter_select = Signal(1)
         buffer_counter = Signal(max=counter_max)
-        self.buffer_select = buffer_select = Signal(4)
-        output_counter = Signal(max=collumns * 16)
-        output_select = Signal(4)
+        self.buffer_select = buffer_select = Signal(1)
+        output_counter = Signal(max=collumns * 2)
+        output_select = Signal(1)
         self.collumn = collumn = Signal(max=collumns)
         self.shifting_done = shifting_done = Signal(1)
         self.comb += [
@@ -368,11 +385,11 @@ class RowModule(Module):
             If(counter < pipeline_delay, buffer_counter.eq(0)).Else(
                 buffer_counter.eq(counter - pipeline_delay)
             ),
-            If(output_select < 8, clk.eq(0)).Else(clk.eq(1)),
-            output_select.eq(output_counter & 0xF),
-            buffer_select.eq(buffer_counter & 0xF),
-            counter_select.eq(counter & 0xF),
-            If(counter < counter_max - delay, collumn.eq(counter >> 4)).Else(
+            If(output_select < 1, clk.eq(0)).Else(clk.eq(1)),
+            output_select.eq(output_counter & 0x1),
+            buffer_select.eq(buffer_counter & 0x1),
+            counter_select.eq(counter & 0x1),
+            If(counter < counter_max - delay, collumn.eq(counter >> 1)).Else(
                 collumn.eq(0),
             ),
         ]
@@ -389,39 +406,43 @@ class RowModule(Module):
 
 
 class Output(Module):
-    def __init__(self, hub75_common, outputs_specific, img_data):
-        r_pins = Array()
-        g_pins = Array()
-        b_pins = Array()
-        for output in outputs_specific:
+    def __init__(self, hub75_common, outputs_specific, buffer_readers, address):
+        for i in range(8):
+            output = outputs_specific[i]
+            r_pins = Array()
+            g_pins = Array()
+            b_pins = Array()
             r_pins.append(output.r0)
             r_pins.append(output.r1)
             g_pins.append(output.g0)
             g_pins.append(output.g1)
             b_pins.append(output.b0)
             b_pins.append(output.b1)
+            buffer_reader = buffer_readers[i]
 
-        self.submodules.r_color = RowColorOutput(
-            r_pins,
-            hub75_common.bit,
-            hub75_common.row.buffer_select,
-            img_data,
-            0,
-        )
-        self.submodules.g_color = RowColorOutput(
-            g_pins,
-            hub75_common.bit,
-            hub75_common.row.buffer_select,
-            img_data,
-            8,
-        )
-        self.submodules.b_color = RowColorOutput(
-            b_pins,
-            hub75_common.bit,
-            hub75_common.row.buffer_select,
-            img_data,
-            16,
-        )
+            self.submodules += RowColorOutput(
+                r_pins,
+                hub75_common.bit,
+                hub75_common.row.buffer_select,
+                buffer_reader.dat_r,
+                0,
+            )
+            self.submodules += RowColorOutput(
+                g_pins,
+                hub75_common.bit,
+                hub75_common.row.buffer_select,
+                buffer_reader.dat_r,
+                8,
+            )
+            self.submodules += RowColorOutput(
+                b_pins,
+                hub75_common.bit,
+                hub75_common.row.buffer_select,
+                buffer_reader.dat_r,
+                16,
+            )
+
+            self.comb += [buffer_reader.adr.eq(address)]
 
 
 class RowColorOutput(Module):
@@ -429,14 +450,11 @@ class RowColorOutput(Module):
         self,
         outputs: Array(Signal(1)),
         bit: Signal(3),
-        buffer_select: Signal(4),
+        buffer_select: Signal(1),
         rgb_input: Signal(24),
         color_offset: int,
     ):
-        while len(outputs) < 16:
-            outputs.append(Signal())
-
-        outputs_buffer = Array((Signal()) for x in range(16))
+        outputs_buffer = Array((Signal()) for x in range(2))
         bit_mask = Signal(24)
         self.sync += [
             outputs_buffer[buffer_select].eq(
@@ -446,4 +464,4 @@ class RowColorOutput(Module):
         ]
 
         self.sync += [If((buffer_select == 0), outputs[i].eq(outputs_buffer[i]))
-                      for i in range(16)]
+                      for i in range(2)]

@@ -11,18 +11,36 @@ def hub75_conn(platform):
         # Results in 0-7
         number = connector
         pins = connectors[name]
-        hub75_extension.append(
-            (
-                "hub75_data",
-                number,
-                Subsignal("r0", Pins(pins[0])),
-                Subsignal("g0", Pins(pins[1])),
-                Subsignal("b0", Pins(pins[2])),
-                Subsignal("r1", Pins(pins[4])),
-                Subsignal("g1", Pins(pins[5])),
-                Subsignal("b1", Pins(pins[6])),
+        # TODO Workaround, for some reason T3 doesn't "exist" on CABGA381 even
+        #      though it exists
+        # HACK HACK HACK
+        # (also change in in soc builder)
+        if connector == 3:
+            hub75_extension.append(
+                (
+                    "hub75_data",
+                    number,
+                    Subsignal("r0", Pins(pins[0])),
+                    Subsignal("g0", Pins(pins[1])),
+                    Subsignal("b0", Pins(pins[2])),
+                    Subsignal("g1", Pins(pins[5])),
+                    Subsignal("b1", Pins(pins[6])),
+                )
             )
-        )
+        else:
+            hub75_extension.append(
+                (
+                    "hub75_data",
+                    number,
+                    Subsignal("r0", Pins(pins[0])),
+                    Subsignal("g0", Pins(pins[1])),
+                    Subsignal("b0", Pins(pins[2])),
+                    Subsignal("r1", Pins(pins[4])),
+                    Subsignal("g1", Pins(pins[5])),
+                    Subsignal("b1", Pins(pins[6])),
+                )
+            )
+
     # Now the common pins, they're the same across all
     pins = connectors["j1"]
     hub75_extension.append(

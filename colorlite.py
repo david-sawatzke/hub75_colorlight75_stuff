@@ -153,6 +153,10 @@ class BaseSoC(SoCCore):
             slave   = self.spiflash_mmap.bus,
             region  = spiflash_region)
 
+        # Disable memtest, it takes a bit and is thus annoying
+        self.add_constant("MEMTEST_DATA_SIZE", 0)
+        self.add_constant("MEMTEST_ADDR_SIZE", 0)
+
         # CRG --------------------------------------------------------------------------------------
         with_rst = False
         # kwargs["uart_name"] not in [

@@ -23,6 +23,7 @@ void init_img_indexed_from_header(void) {
 
   // Enable indexed mode
   hub75_ctrl_indexed_write(1);
+  hub75_ctrl_enabled_write(1);
 }
 
 void init_img_from_header(void) {
@@ -37,4 +38,5 @@ void init_img_from_header(void) {
 
   // Disable indexed mode
   hub75_ctrl_indexed_write(0);
+  hub75_ctrl_enabled_write(1);
 }

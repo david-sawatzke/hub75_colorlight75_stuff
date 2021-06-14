@@ -121,12 +121,13 @@ int main(void) {
   irq_setmask(0);
   irq_setie(1);
 #endif
-  init_img_from_header();
   uart_init();
-
   puts("\nLab004 - CPU testing software built "__DATE__
        " "__TIME__
        "\n");
+
+  init_img_from_header();
+
   help();
   prompt();
 

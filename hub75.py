@@ -58,7 +58,7 @@ class FrameController(Module):
         counter_max = 8
 
         counter = Signal(max=counter_max)
-        self.bit = brightness_bit = Signal(max=brightness_bits)
+        self.output_bit = brightness_bit = Signal(max=brightness_bits)
         brightness_counter = Signal(
             max=(1 << brightness_bits) * brightness_psc)
         row_active = Signal(4)
@@ -117,7 +117,7 @@ class FrameController(Module):
 
 
 class RowController(Module):
-    def __init__(self, hub75_common, outputs_specific, output_config, read_port, collumns=64):
+    def __init__(self, hub75_common, outputs_specific, output_config, read_port, collumns_2=6):
         self.specials.palette_memory = palette_memory = Memory(
             width=32, depth=256, name="palette"
         )
@@ -133,7 +133,7 @@ class RowController(Module):
             # A quarter is not needed and (somewhat) easily used
             for _ in range(8):
                 row_buffer = Memory(
-                    width=32, depth=collumns * 2,
+                    width=32, depth=1 << (collumns_2 + 1),
                 )
                 row_writer = row_buffer.get_port(write_capable=True)
                 row_reader = row_buffer.get_port()
@@ -150,11 +150,11 @@ class RowController(Module):
         self.submodules.buffer_reader = RamToBufferReader(
             mem_start, (hub75_common.row_select + 1) & 0xF,
             output_config.indexed, output_config.width, read_port,
-            row_writers[~shifting_buffer], palette_memory, collumns)
+            row_writers[~shifting_buffer], palette_memory, collumns_2)
 
         row_start = Signal()
         self.submodules.row_module = hub75_common.row = RowModule(
-            row_start, hub75_common.clk, collumns
+            row_start, hub75_common.clk, collumns_2
         )
 
         self.submodules.specific = Output(hub75_common, outputs_specific,
@@ -163,22 +163,22 @@ class RowController(Module):
 
         self.submodules.fsm = fsm = FSM(reset_state="IDLE")
         fsm.act("IDLE",
-                If((hub75_common.start_shifting & (hub75_common.bit == 7)),
+                If((hub75_common.start_shifting & (hub75_common.output_bit == 7)),
                    mem_start.eq(True),
                    row_start.eq(True),
                    NextState("SHIFT_OUT"))
-                .Elif((hub75_common.start_shifting & (hub75_common.bit != 7)),
+                .Elif((hub75_common.start_shifting & (hub75_common.output_bit != 7)),
                       row_start.eq(True),
                       NextState("SHIFT_OUT")
                       )
                 )
         fsm.act("SHIFT_OUT",
                 running.eq(True),
-                If((hub75_common.bit == 0) & self.row_module.shifting_done
+                If((hub75_common.output_bit == 0) & self.row_module.shifting_done
                    & self.buffer_reader.done,
                    NextValue(shifting_buffer, ~shifting_buffer),
                    NextState("IDLE")),
-                If((hub75_common.bit != 0) & self.row_module.shifting_done,
+                If((hub75_common.output_bit != 0) & self.row_module.shifting_done,
                    NextState("IDLE"))
                 )
         self.comb += [
@@ -200,7 +200,7 @@ class RamToBufferReader(Module):
             mem_read_port,
             buffer_write_port,
             palette_memory,
-            collumns: int = 64,
+            collumns_2: int = 6,
     ):
         self.done = Signal()
         running = Signal()
@@ -213,7 +213,7 @@ class RamToBufferReader(Module):
         # RAM Reader
         self.submodules.reader = LiteDRAMDMAReader(mem_read_port)
         self.submodules.ram_adr = RamAddressGenerator(
-            start, self.reader.sink.ready, row, image_width, collumns)
+            start, self.reader.sink.ready, row, image_width, collumns_2)
 
         ram_valid = self.reader.source.valid
         ram_data = self.reader.source.data
@@ -285,24 +285,28 @@ class RamToBufferReader(Module):
 
         # Buffer Writer
         buffer_done = Signal()
-        buffer_counter = Signal(collumns * 8 * 2)
+        buffer_counter = Signal(collumns_2 + 4)
         buffer_select = Signal(3)
-        buffer_address = Signal(collumns * 2)
+        buffer_address = Signal(collumns_2 + 1)
 
         for i in range(8):
             self.sync += [
-               buffer_write_port[i].dat_w.eq(gamma_data),
-               buffer_write_port[i].adr.eq(buffer_address),
+                If(gamma_data_valid,
+                    buffer_write_port[i].dat_w.eq(gamma_data),
+                    buffer_write_port[i].adr.eq(buffer_address),
+                )
             ]
         self.comb += [
-            buffer_address.eq(((buffer_counter >> 4) << 1)
-                              | (buffer_counter & 0b1)),
-            buffer_select.eq((buffer_counter >> 1) & 0b111)
-            ]
+            buffer_select.eq(buffer_counter >> (collumns_2 + 1)),
+            buffer_address.eq(((buffer_counter & ((1 << collumns_2) - 1)) << 1)
+                             | ((buffer_counter & (1 << collumns_2)) != 0)),
+        ]
+        # TODO Check if data & adress match
         self.sync += [
             If(gamma_data_valid,
-               buffer_write_port[buffer_select - 1].we.eq(False),
-               buffer_write_port[buffer_select].we.eq(True),
+                If((buffer_counter & 0b1) == 0,
+                    buffer_write_port[buffer_select - 1].we.eq(False),
+                    buffer_write_port[buffer_select].we.eq(True),),
                buffer_counter.eq(buffer_counter + 1),)
             .Elif(gamma_data_done & (~buffer_done),
                   buffer_write_port[buffer_select - 1].we.eq(False),
@@ -322,38 +326,35 @@ class RamAddressGenerator(Module):
         enable: Signal(1),
         row: Signal(4),
         image_width: Signal(16),
-        collumns: int = 64,
+        collumns_2: int = 6,
     ):
-        self.counter = Signal(max=collumns * 16)
-        self.counter_select = Signal(max=16)
-        self.collumn = Signal(max=collumns)
+        self.counter = Signal(collumns_2 + 4)
+        self.counter_select = Signal(4)
+        self.collumn = Signal(collumns_2)
         self.adr = Signal(32)
         self.started = Signal(1)
         self.start = Signal(1)
         self.comb += [
-            self.counter_select.eq(self.counter & 0xF),
-            self.collumn.eq(self.counter >> 4),
-            self.started.eq(self.start | (self.counter != 0))
+            self.counter_select.eq(self.counter >> collumns_2),
+            self.collumn.eq(self.counter & ((1 << collumns_2) - 1)),
         ]
 
         self.sync += [
             If(start,
                 self.start.eq(True),
                ),
-            If((self.counter == 0) & self.start & enable,
+            If((self.counter == 0) & self.start,
                 self.counter.eq(1),
                 self.start.eq(False))
-            .Elif((self.counter == (collumns * 16 - 1)) & enable,
+            .Elif((self.counter == ((1 << (collumns_2 + 4)) - 1)) & enable,
                   self.counter.eq(0))
             .Elif((self.counter > 0) & enable,
                   self.counter.eq(self.counter + 1)
                   ),
-            If(
-                enable == False)
-            .Elif(
-                self.counter_select < 4,
+            If(enable | self.start,
+                self.started.eq(self.start | (self.counter != 0)),
                 self.adr.eq(
-                    sdram_offset + (row + self.counter_select *
+                    sdram_offset + (row + (self.counter_select & 0b11) *
                                     16) * image_width + self.collumn
                 ))
         ]
@@ -364,19 +365,19 @@ class RowModule(Module):
         self,
         start: Signal(1),
         clk: Signal(1),
-        collumns: int = 64,
+        collumns_2: int = 6,
     ):
-        pipeline_delay = 2
+        pipeline_delay = 1
         output_delay = 2
         delay = pipeline_delay + output_delay
-        counter_max = collumns * 2 + delay
+        counter_max = (1 << (collumns_2 + 1)) + delay
         self.counter = counter = Signal(max=counter_max)
         self.counter_select = counter_select = Signal(1)
         buffer_counter = Signal(max=counter_max)
         self.buffer_select = buffer_select = Signal(1)
-        output_counter = Signal(max=collumns * 2)
+        output_counter = Signal(collumns_2 + 1)
         output_select = Signal(1)
-        self.collumn = collumn = Signal(max=collumns)
+        self.collumn = collumn = Signal(collumns_2)
         self.shifting_done = shifting_done = Signal(1)
         self.comb += [
             If(counter < delay, output_counter.eq(0)).Else(
@@ -385,7 +386,6 @@ class RowModule(Module):
             If(counter < pipeline_delay, buffer_counter.eq(0)).Else(
                 buffer_counter.eq(counter - pipeline_delay)
             ),
-            If(output_select < 1, clk.eq(0)).Else(clk.eq(1)),
             output_select.eq(output_counter & 0x1),
             buffer_select.eq(buffer_counter & 0x1),
             counter_select.eq(counter & 0x1),
@@ -395,6 +395,7 @@ class RowModule(Module):
         ]
 
         self.sync += [
+            If(output_select < 1, clk.eq(0)).Else(clk.eq(1)),
             If((counter == 0) & start,
                 counter.eq(1))
             .Elif((counter == (counter_max - 1)),
@@ -422,21 +423,21 @@ class Output(Module):
 
             self.submodules += RowColorOutput(
                 r_pins,
-                hub75_common.bit,
+                hub75_common.output_bit,
                 hub75_common.row.buffer_select,
                 buffer_reader.dat_r,
                 0,
             )
             self.submodules += RowColorOutput(
                 g_pins,
-                hub75_common.bit,
+                hub75_common.output_bit,
                 hub75_common.row.buffer_select,
                 buffer_reader.dat_r,
                 8,
             )
             self.submodules += RowColorOutput(
                 b_pins,
-                hub75_common.bit,
+                hub75_common.output_bit,
                 hub75_common.row.buffer_select,
                 buffer_reader.dat_r,
                 16,
@@ -449,7 +450,7 @@ class RowColorOutput(Module):
     def __init__(
         self,
         outputs: Array(Signal(1)),
-        bit: Signal(3),
+        output_bit: Signal(3),
         buffer_select: Signal(1),
         rgb_input: Signal(24),
         color_offset: int,
@@ -460,7 +461,7 @@ class RowColorOutput(Module):
             outputs_buffer[buffer_select].eq(
                 (rgb_input & bit_mask) != 0),
             # Leads to 1 cycle delay, but that's probably not an issue
-            bit_mask.eq(1 << (color_offset + bit))
+            bit_mask.eq(1 << (color_offset + output_bit))
         ]
 
         self.sync += [If((buffer_select == 0), outputs[i].eq(outputs_buffer[i]))

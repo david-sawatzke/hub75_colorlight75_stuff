@@ -1,4 +1,10 @@
+ifdef SIM
+BUILD_DIR=../build/sim/
+all: firmware_sim.bin
+else
 BUILD_DIR=../build/colorlight_5a_75b/
+all: firmware.bin
+endif
 
 include $(BUILD_DIR)/software/include/generated/variables.mak
 include $(SOC_DIRECTORY)/software/common.mak
@@ -7,7 +13,6 @@ OBJECTS=isr.o main.o img_utils.o img_data.o
 
 LDFLAGS := $(LDFLAGS) --gc-sections
 
-all: firmware.bin
 
 # pull in dependency info for *existing* .o files
 -include $(OBJECTS:.o=.d)
@@ -16,7 +21,7 @@ all: firmware.bin
 	$(OBJCOPY) -O binary $< $@
 	chmod -x $@
 
-firmware.elf: $(OBJECTS)
+%.elf: $(OBJECTS)
 	$(LD) $(LDFLAGS) \
 		-T linker.ld \
 		-N -o $@ \

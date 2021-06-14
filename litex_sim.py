@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# This isn't really kept up-to-date and may need adjustments to work
 
 #
 # This file is part of LiteX.
@@ -292,29 +293,16 @@ class SimSoC(SoCCore):
                        l2_cache_size=kwargs.get("l2_size", 8192),
                        l2_cache_min_data_width=kwargs.get(
                            "min_l2_data_width", 128),
-                       l2_cache_reverse=True
+                       l2_cache_reverse=False
                        )
         # Reduce memtest size for simulation speedup
-        self.add_constant("MEMTEST_DATA_SIZE", 0)
-        self.add_constant("MEMTEST_ADDR_SIZE", 0)
+        self.add_constant("SDRAM_TEST_DISABLE")
 
-        # Add hub75 connectors
-        write_port = self.sdram.crossbar.get_port(mode="write", data_width=32)
-        read_port = self.sdram.crossbar.get_port(mode="read", data_width=32)
+        pins_common = platform.request("hub75_common")
+        pins = [platform.request("hub75_data", i) for i in range(8)]
 
-        hub75_common = hub75.FrameController(
-            platform.request("hub75_common"),
-            # TODO Adjust later on
-            brightness_psc=15,
-        )
-        self.submodules.hub75_common = hub75_common
-        pins = [platform.request("hub75_data", 1),
-                platform.request("hub75_data", 2)]
-
-        self.submodules.hub75_specific = specific = hub75.RowController(
-            hub75_common, pins, write_port, read_port
-        )
-
+        self.submodules.hub75 = hub75.Hub75(pins_common, pins, self.sdram)
+        #
         #assert not (with_ethernet and with_etherbone)
 
         if with_ethernet and with_etherbone:
@@ -506,12 +494,7 @@ def main():
     if args.rom_init:
         soc_kwargs["integrated_rom_init"] = get_mem_data(
             args.rom_init, cpu.endianness)
-    # if not args.with_sdram:
-    #     soc_kwargs["integrated_main_ram_size"] = 0x10000000 # 256 MB
-    #     if args.ram_init is not None:
-    #         soc_kwargs["integrated_main_ram_init"] = get_mem_data(args.ram_init, cpu.endianness)
-    # else:
-    assert args.ram_init is None
+
     soc_kwargs["integrated_main_ram_size"] = 0x0
     soc_kwargs["sdram_module"] = args.sdram_module
     soc_kwargs["sdram_data_width"] = int(args.sdram_data_width)
@@ -542,8 +525,8 @@ def main():
         sdram_init=[] if args.sdram_init is None else get_mem_data(
             args.sdram_init, cpu.endianness),
         **soc_kwargs)
-    if args.ram_init is not None:
-        soc.add_constant("ROM_BOOT_ADDRESS", 0x40000000)
+    if args.ram_init is not None or args.sdram_init is not None:
+        soc.add_constant("ROM_BOOT_ADDRESS", soc.mem_map["main_ram"])
     if args.with_ethernet:
         for i in range(4):
             soc.add_constant("LOCALIP{}".format(

@@ -19,7 +19,6 @@ from litex.build.sim.config import SimConfig
 
 from litex.soc.integration.common import *
 from litex.soc.integration.soc_core import *
-from litex.soc.integration.soc_sdram import *
 from litex.soc.integration.builder import *
 from litex.soc.integration.soc import *
 from litex.soc.cores.bitbang import *
@@ -427,7 +426,7 @@ class SimSoC(SoCCore):
 
 def sim_args(parser):
     builder_args(parser)
-    soc_sdram_args(parser)
+    soc_core_args(parser)
     parser.add_argument("--threads",              default=1,
                         help="Set number of threads (default=1)")
     parser.add_argument("--rom-init",
@@ -478,7 +477,7 @@ def main():
     sim_args(parser)
     args = parser.parse_args()
 
-    soc_kwargs = soc_sdram_argdict(args)
+    soc_kwargs = soc_core_argdict(args)
     builder_kwargs = builder_argdict(args)
 
     sys_clk_freq = int(50e6)

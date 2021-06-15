@@ -10,10 +10,11 @@ void set_common_params(void);
 void set_common_params(void) {
   hub75_panel0_y_write(0);
   hub75_panel1_y_write(1);
-  hub75_panel2_y_write(1);
-  hub75_panel3_y_write(0);
+  hub75_panel2_x_write(2);
+  hub75_panel2_y_write(0);
+  hub75_panel3_x_write(2);
+  hub75_panel3_y_write(1);
   hub75_ctrl_enabled_write(1);
-  hub75_ctrl_width_write(64);
 }
 
 void init_img_indexed_from_header(void) {
@@ -33,6 +34,7 @@ void init_img_indexed_from_header(void) {
 
   // Enable indexed mode
   hub75_ctrl_indexed_write(1);
+  hub75_ctrl_width_write(64);
   set_common_params();
 }
 
@@ -47,5 +49,6 @@ void init_img_from_header(void) {
 
   // Disable indexed mode
   hub75_ctrl_indexed_write(0);
+  hub75_ctrl_width_write(128);
   set_common_params();
 }

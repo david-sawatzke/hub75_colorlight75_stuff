@@ -6,13 +6,13 @@ import png
 def _get_image_array():
     r = png.Reader(file=open("../demo_img.png", "rb"))
     img = r.read()
-    assert img[0] == 64
+    assert img[0] == 128
     assert img[1] == 64
     pixels = list(img[2])
     out_array = []
     for arr in pixels:
         # Assue rgb
-        for i in range(64):
+        for i in range(img[0]):
             red = arr[i * 3 + 0]
             green = arr[i * 3 + 1]
             blue = arr[i * 3 + 2]

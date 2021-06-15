@@ -70,6 +70,8 @@ static void help(void) {
   puts("display                         - display test");
   puts("load                            - load normal image");
   puts("load_indexed                    - load indexed image");
+  puts("on                              - turn display on");
+  puts("off                             - turn display off");
   puts("write [adr] [dat]               - write data");
 }
 
@@ -99,6 +101,10 @@ static void console_service(void) {
     reboot();
   else if (strcmp(token, "display") == 0)
     display();
+  else if (strcmp(token, "on") == 0)
+    hub75_ctrl_enabled_write(1);
+  else if (strcmp(token, "off") == 0)
+    hub75_ctrl_enabled_write(0);
   else if (strcmp(token, "load") == 0)
     init_img_from_header();
   else if (strcmp(token, "load_indexed") == 0)

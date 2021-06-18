@@ -1,4 +1,10 @@
 # Setup
+## Dependencies
+- yosys
+- trellis
+- ecpprog
+- python
+- ...
 
 ## Install litex
 
@@ -19,10 +25,12 @@ pip install -r requirements.txt
 
 ``` sh
 $ ./colorlight.py --revision 6.1 --build
-$ ./colorlight.py --revision 6.1 --load
 ```
-
-
+## Load or flash
+``` sh
+$ ./colorlight.py --revision 6.1 --load
+$ ./colorlight.py --revision 6.1 --flash
+```
 ## To simulate SoC
 Compile software
 

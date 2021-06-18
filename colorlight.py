@@ -12,6 +12,7 @@
 import os
 import argparse
 import sys
+import subprocess
 
 from migen import *
 from migen.genlib.resetsync import AsyncResetSynchronizer
@@ -21,6 +22,7 @@ from litex.build.io import DDROutput
 from litex_boards.platforms import colorlight_5a_75b
 
 from litex.build.lattice.trellis import trellis_args, trellis_argdict
+from litex.build.generic_programmer import GenericProgrammer
 
 from litex.soc.cores.clock import *
 from litex.soc.cores import uart
@@ -45,6 +47,15 @@ import hub75
 
 import helper
 
+
+class ECP5Programmer(GenericProgrammer):
+    needs_bitreverse = False
+
+    def flash(self, address, bitstream_file):
+        subprocess.call(["ecpprog", "-o", str(address), bitstream_file])
+
+    def load_bitstream(self, bitstream_file):
+        subprocess.call(["ecpprog", "-S", bitstream_file])
 
 # CRG ----------------------------------------------------------------------------------------------
 
@@ -214,6 +225,7 @@ def main():
     trellis_args(parser)
     parser.add_argument("--build", action="store_true", help="Build bitstream")
     parser.add_argument("--load", action="store_true", help="Load bitstream")
+    parser.add_argument("--flash", action="store_true", help="Flash bitstream")
     parser.add_argument(
         "--revision",
         default="7.0",
@@ -241,11 +253,13 @@ def main():
     builder = Builder(soc, **builder_argdict(args))
     builder.build(**trellis_argdict(args), run=args.build)
 
-    if args.load:
-        prog = soc.platform.create_programmer()
-        prog.load_bitstream(os.path.join(
-            builder.gateware_dir, soc.build_name + ".svf"))
-
+    # If requested load the resulting bitstream onto the 5A-75B
+    if args.flash or args.load:
+        prog = ECP5Programmer()
+        if args.load:
+            prog.load_bitstream(os.path.join(builder.gateware_dir, soc.build_name + ".bit"))
+        if args.flash:
+            prog.flash(0x00000000, os.path.join(builder.gateware_dir, soc.build_name + ".bit"))
 
 if __name__ == "__main__":
     main()

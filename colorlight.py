@@ -164,6 +164,18 @@ class BaseSoC(SoCCore):
             slave   = self.spiflash_mmap.bus,
             region  = spiflash_region)
 
+        self.add_constant("SPIFLASH_PAGE_SIZE", flash.page_size)
+
+        # Internal Litex spi support, supports flashing & stuff via bios
+        # Adapted from `add_spi_flash`
+        # self.submodules.spiflash = spiflash = SpiFlash(
+        #     pads=self.platform.request("spiflash"),
+        #     div=2, with_bitbang=True, dummy=8,
+        #     endianness=self.cpu.endianness)
+        # spiflash.add_clk_primitive(self.platform.device)
+        # spiflash_region = SoCRegion(origin=0x80000000, size=2 * 1024 * 1024)
+        # self.bus.add_slave(name="spiflash", slave=spiflash.bus, region=spiflash_region)
+
         # Disable memtest, it takes a bit and is thus annoying
         self.add_constant("MEMTEST_DATA_SIZE", 0)
         self.add_constant("MEMTEST_ADDR_SIZE", 0)

@@ -18,8 +18,8 @@ pip install -r requirements.txt
 ## To build
 
 ``` sh
-$ ./colorlite.py --revision 6.1 --build
-$ ./colorlite.py --revision 6.1 --load
+$ ./colorlight.py --revision 6.1 --build
+$ ./colorlight.py --revision 6.1 --load
 ```
 
 

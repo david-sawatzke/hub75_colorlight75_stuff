@@ -128,7 +128,7 @@ int main(void) {
   irq_setie(1);
 #endif
   uart_init();
-  puts("\nLab004 - CPU testing software built "__DATE__
+  puts("\nColorlight - Software built "__DATE__
        " "__TIME__
        "\n");
 

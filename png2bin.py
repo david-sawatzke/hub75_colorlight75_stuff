@@ -18,7 +18,7 @@ def _get_image_array():
             green = arr[i * 3 + 1]
             blue = arr[i * 3 + 2]
             out_array.append(red | green << 8 | blue << 16)
-    return out_array
+    return (out_array, img[0], img[1])
 
 
 def write_32bit(filehandler, data):
@@ -26,14 +26,13 @@ def write_32bit(filehandler, data):
     f.write(bytearray(byte_arr))
 
 img = _get_image_array()
-img_indexed = _get_indexed_image_arrays()
 
 f = open("img_data.bin", "wb")
-width = 128
+width = img[1]
 write_32bit(f, 0 << 31 | (width & 0xFFFF))
-write_32bit(f, len(img))
+write_32bit(f, len(img[0]))
 write_32bit(f, 0xD1581A40)
 write_32bit(f, 0xDA5A0001)
-for data in img:
+for data in img[0]:
     write_32bit(f, data)
 f.close()

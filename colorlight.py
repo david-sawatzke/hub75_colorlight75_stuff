@@ -164,6 +164,7 @@ class BaseSoC(SoCCore):
             slave   = self.spiflash_mmap.bus,
             region  = spiflash_region)
 
+        self.add_constant("FLASH_BOOT_ADDRESS", self.bus.regions["spiflash"].origin + 0x100000)
         self.add_constant("SPIFLASH_PAGE_SIZE", flash.page_size)
 
         # Internal Litex spi support, supports flashing & stuff via bios

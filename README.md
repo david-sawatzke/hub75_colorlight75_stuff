@@ -31,6 +31,20 @@ $ ./colorlight.py --revision 6.1 --build
 $ ./colorlight.py --revision 6.1 --load
 $ ./colorlight.py --revision 6.1 --flash
 ```
+## Load sw
+
+``` sh
+$ lxterm /dev/ttyUSB1 --kernel sw/firmware.bin
+```
+
+## Flash sw
+
+``` sh
+$ python3 -m litex.soc.software.mkmscimg sw/firmware.bin -f --little -o sw/firmware.fbi
+$ ecpprog -o 1M sw/firmware.fbi
+
+```
+
 ## To simulate SoC
 Compile software
 

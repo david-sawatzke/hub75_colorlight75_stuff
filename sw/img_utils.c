@@ -52,3 +52,24 @@ void init_img_from_header(void) {
   hub75_ctrl_width_write(128);
   set_common_params();
 }
+
+void init_img_from_spi(void) {
+
+  uint32_t *spi_img_base =
+      (uint32_t *)(SPIFLASH_BASE + ((SPIFLASH_SIZE / 4) * 3));
+
+  uint16_t width = spi_img_base[0] & 0xFFFF;
+  uint16_t length = spi_img_base[1];
+  volatile uint32_t *sdram_img_base =
+      (volatile uint32_t *)(MAIN_RAM_BASE + (MAIN_RAM_SIZE / 2));
+  for (uint32_t i = 0; i < length; i++) {
+    *(sdram_img_base + i) = *(spi_img_base + i + 4);
+  }
+
+  flush_l2_cache();
+
+  // Disable indexed mode
+  hub75_ctrl_indexed_write(0);
+  hub75_ctrl_width_write(width);
+  set_common_params();
+}

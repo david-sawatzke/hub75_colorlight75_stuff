@@ -3,5 +3,6 @@
 
 void init_img_indexed_from_header(void);
 void init_img_from_header(void);
+void init_img_from_spi(void);
 
 #endif // IMG_UTILS_H_

@@ -30,3 +30,13 @@ Idea:
   (Use 32 bit words for rgb or palette lookup, easier that way)
   (palette is stored inside the fpga)
 -> Lots of free space. Can we use it in any useful way? Maybe rendering with scrolling text & stuff?
+* On-Flash image properties
+Last 4MBit for image
+Header:
+|                               Indexed (1) | 0 | width (16) |
+| length (32) (of image data exkl. palette) | - |            |
+|                                0xD1581A40 | - |            |
+|                                0xDA5A0001 | - |            |
+Contents:
+| display array                         |
+| palette, length 1024 bytes if indexed |

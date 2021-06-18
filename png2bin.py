@@ -1,0 +1,39 @@
+#!/usr/bin/env python3
+# To flash: ecpprog -o 1536k img_data.bin
+
+import png
+
+
+def _get_image_array():
+    r = png.Reader(file=open("./demo_img.png", "rb"))
+    img = r.read()
+    assert img[0] == 128
+    assert img[1] == 64
+    pixels = list(img[2])
+    out_array = []
+    for arr in pixels:
+        # Assue rgb
+        for i in range(img[0]):
+            red = arr[i * 3 + 0]
+            green = arr[i * 3 + 1]
+            blue = arr[i * 3 + 2]
+            out_array.append(red | green << 8 | blue << 16)
+    return out_array
+
+
+def write_32bit(filehandler, data):
+    byte_arr = [data & 0xFF, (data >> 8) & 0xFF, (data >> 16) & 0xFF, (data >> 24) & 0xFF]
+    f.write(bytearray(byte_arr))
+
+img = _get_image_array()
+img_indexed = _get_indexed_image_arrays()
+
+f = open("img_data.bin", "wb")
+width = 128
+write_32bit(f, 0 << 31 | (width & 0xFFFF))
+write_32bit(f, len(img))
+write_32bit(f, 0xD1581A40)
+write_32bit(f, 0xDA5A0001)
+for data in img:
+    write_32bit(f, data)
+f.close()

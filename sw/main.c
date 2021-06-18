@@ -69,6 +69,7 @@ static void help(void) {
   puts("reboot                          - reboot CPU");
   puts("display                         - display test");
   puts("load                            - load normal image");
+  puts("load_spi                        - load spi image");
   puts("load_indexed                    - load indexed image");
   puts("on                              - turn display on");
   puts("off                             - turn display off");
@@ -107,6 +108,8 @@ static void console_service(void) {
     hub75_ctrl_enabled_write(0);
   else if (strcmp(token, "load") == 0)
     init_img_from_header();
+  else if (strcmp(token, "load_spi") == 0)
+    init_img_from_spi();
   else if (strcmp(token, "load_indexed") == 0)
     init_img_indexed_from_header();
   else if (strcmp(token, "write") == 0) {

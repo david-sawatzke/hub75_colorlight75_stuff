@@ -269,20 +269,14 @@ class RamToBufferReader(Module):
         ]
 
         # Gamma Correction
-        gamma_lut_r = _get_gamma_corr()
-        gamma_lut_g = _get_gamma_corr()
-        gamma_lut_b = _get_gamma_corr()
+        gamma_lut = _get_gamma_corr()
         gamma_data_done = Signal()
         gamma_data_valid = Signal()
         gamma_data = Signal(24)
         self.sync += [
-            If(palette_data_valid,
-               gamma_data.eq(
-                   gamma_lut_r[palette_data[:8]]
-                   | (gamma_lut_g[palette_data[8:16]] << 8)
-                   | (gamma_lut_b[palette_data[16:24]] << 16)
-               )
-               ),
+            gamma_data.eq(Cat(gamma_lut[palette_data[:8]],
+                              gamma_lut[palette_data[8:16]],
+                              gamma_lut[palette_data[16:24]])),
             gamma_data_valid.eq(palette_data_valid),
             gamma_data_done.eq(palette_data_done),
         ]

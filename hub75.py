@@ -409,38 +409,29 @@ class RowModule(Module):
 class Output(Module):
     def __init__(self, hub75_common, outputs_specific, buffer_readers, address):
         for i in range(8):
-            output = outputs_specific[i]
-            r_pins = Array()
-            g_pins = Array()
-            b_pins = Array()
-            r_pins.append(output.r0)
-            r_pins.append(output.r1)
-            g_pins.append(output.g0)
-            g_pins.append(output.g1)
-            b_pins.append(output.b0)
-            b_pins.append(output.b1)
+            out = outputs_specific[i]
+            r_pins = Array([out.r0, out.r1])
+            g_pins = Array([out.g0, out.g1])
+            b_pins = Array([out.b0, out.b1])
             buffer_reader = buffer_readers[i]
 
             self.submodules += RowColorOutput(
                 r_pins,
                 hub75_common.output_bit,
                 hub75_common.row.buffer_select,
-                buffer_reader.dat_r,
-                0,
+                buffer_reader.dat_r[0:8],
             )
             self.submodules += RowColorOutput(
                 g_pins,
                 hub75_common.output_bit,
                 hub75_common.row.buffer_select,
-                buffer_reader.dat_r,
-                8,
+                buffer_reader.dat_r[8:16],
             )
             self.submodules += RowColorOutput(
                 b_pins,
                 hub75_common.output_bit,
                 hub75_common.row.buffer_select,
-                buffer_reader.dat_r,
-                16,
+                buffer_reader.dat_r[16:24],
             )
 
             self.comb += [buffer_reader.adr.eq(address)]
@@ -452,16 +443,12 @@ class RowColorOutput(Module):
         outputs: Array(Signal(1)),
         output_bit: Signal(3),
         buffer_select: Signal(1),
-        rgb_input: Signal(24),
-        color_offset: int,
+        color_input: Signal(8),
     ):
         outputs_buffer = Array((Signal()) for x in range(2))
-        bit_mask = Signal(24)
         self.sync += [
             outputs_buffer[buffer_select].eq(
-                (rgb_input & bit_mask) != 0),
-            # Leads to 1 cycle delay, but that's probably not an issue
-            bit_mask.eq(1 << (color_offset + output_bit))
+                color_input >> output_bit),
         ]
 
         self.sync += [If((buffer_select == 0), outputs[i].eq(outputs_buffer[i]))

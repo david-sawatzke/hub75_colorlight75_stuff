@@ -3,7 +3,7 @@
 # Using binary code modulation (http://www.batsocks.co.uk/readme/art_bcm_1.htm)
 from types import SimpleNamespace
 
-from migen import If, Signal, Array, Memory, Module, FSM, NextValue, NextState, Mux
+from migen import If, Signal, Array, Memory, Module, FSM, NextValue, NextState, Mux, Cat
 from litex.soc.interconnect.csr import AutoCSR, CSRStorage, CSRField
 from litedram.frontend.dma import LiteDRAMDMAReader
 
@@ -212,20 +212,20 @@ class RamToBufferReader(Module):
             mem_read_port,
             buffer_write_port,
             palette_memory,
-            collumns_2: int = 6,
+            collumns_2,
+            strip_length_2=0,
     ):
         self.done = Signal()
-        running = Signal()
-        self.comb += [
-            # Eliminate the delay
-            self.done.eq(~(start | running)),
-        ]
-        self.sync += [If(start, running.eq(True))]
+        done = Signal()
+        # Eliminate the delay
+        self.comb += self.done.eq(~start & done)
+        self.sync += If(start, done.eq(False))
 
         # RAM Reader
         self.submodules.reader = LiteDRAMDMAReader(mem_read_port)
         self.submodules.ram_adr = RamAddressGenerator(
-            start, self.reader.sink.ready, row, image_width, panel_config, collumns_2)
+            start, self.reader.sink.ready, row, image_width, panel_config,
+            collumns_2, strip_length_2)
 
         ram_valid = self.reader.source.valid
         ram_data = self.reader.source.data
@@ -301,21 +301,22 @@ class RamToBufferReader(Module):
                 )
             ]
         self.comb += [
-            buffer_select.eq(buffer_counter[collumns_2 + 1:]),
-            buffer_address.eq((buffer_counter[:collumns_2] << 1)
-                              | buffer_counter[collumns_2]),
-        ]
+            buffer_select.eq(buffer_counter[collumns_2 + 1 + strip_length_2:]),
+            buffer_address.eq(
+                Cat(buffer_counter[collumns_2],
+                    buffer_counter[:collumns_2],
+                    buffer_counter[collumns_2 + 1:collumns_2 + 1 + strip_length_2])
+            ), ]
         # TODO Check if data & adress match
         self.sync += [
             If(gamma_data_valid,
-                If((buffer_counter & 0b1) == 0,
-                    buffer_write_port[buffer_select - 1].we.eq(False),
-                    buffer_write_port[buffer_select].we.eq(True),),
+                buffer_write_port[buffer_select - 1].we.eq(False),
+                buffer_write_port[buffer_select].we.eq(True),
                buffer_counter.eq(buffer_counter + 1),)
             .Elif(gamma_data_done & (~buffer_done),
                   buffer_write_port[buffer_select - 1].we.eq(False),
                   buffer_counter.eq(0),
-                  running.eq(False)),
+                  done.eq(True)),
             buffer_done.eq(gamma_data_done)
         ]
 
@@ -329,7 +330,7 @@ class RamAddressGenerator(Module):
         image_width: Signal(16),
         panel_config,
         collumns_2,
-        strip_length_2=0,
+        strip_length_2,
     ):
         outputs_2 = 3
         counter = Signal(collumns_2 + 1 + strip_length_2 + outputs_2)
@@ -354,7 +355,7 @@ class RamAddressGenerator(Module):
             .Elif(self.started & enable,
                   counter.eq(counter + 1)
                   ),
-            If(enable | (start & ~self.started),
+            If(enable | start,
                 self.adr.eq(
                     sdram_offset
                     + (row + half_select * 16 +

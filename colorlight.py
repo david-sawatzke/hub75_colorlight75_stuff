@@ -137,7 +137,7 @@ class BaseSoC(SoCCore):
             cpu_freq=sys_clk_freq,
             ident="LiteX SoC on Colorlight 5A-75B", ident_version=True,
             integrated_rom_size=0x10000,
-            integrated_ram_size=0x4000,
+            integrated_ram_size=0x0,
             # Use with `litex_server --uart --uart-port /dev/ttyUSB1`
             uart_name="serial",
             # uart_name="crossover+bridge",
@@ -177,9 +177,6 @@ class BaseSoC(SoCCore):
         # spiflash_region = SoCRegion(origin=0x80000000, size=2 * 1024 * 1024)
         # self.bus.add_slave(name="spiflash", slave=spiflash.bus, region=spiflash_region)
 
-        # Disable memtest, it takes a bit and is thus annoying
-        self.add_constant("MEMTEST_DATA_SIZE", 0)
-        self.add_constant("MEMTEST_ADDR_SIZE", 0)
 
         # CRG --------------------------------------------------------------------------------------
         with_rst = False
@@ -216,16 +213,20 @@ class BaseSoC(SoCCore):
 
         self.submodules.hub75 = hub75.Hub75(pins_common, pins, self.sdram)
 
-        # Disable ethernet for now
         # Ethernet / Etherbone ---------------------------------------------------------------------
-        # self.submodules.ethphy = LiteEthPHYRGMII(
-        #     clock_pads=self.platform.request("eth_clocks"),
-        #     pads=self.platform.request("eth"),
-        # )
-        # self.add_csr("ethphy")
-        # self.add_ethernet(phy=self.ethphy)
+        # Use phy0
+        self.submodules.ethphy = LiteEthPHYRGMII(
+            clock_pads=self.platform.request("eth_clocks", 0),
+            pads=self.platform.request("eth", 0),
+            tx_delay   = 0e-9,
+        )
+        self.add_csr("ethphy")
+        self.add_ethernet(phy=self.ethphy, nrxslots=1, ntxslots=1)
         # self.add_etherbone(phy=self.ethphy)
 
+        ## Reduce bios size
+        # Disable memtest, it takes a bit and is thus annoying
+        self.add_constant("SDRAM_TEST_DISABLE")
 
 # Build --------------------------------------------------------------------------------------------
 
@@ -250,9 +251,6 @@ def main():
     parser.add_argument("--mac-address", default="0x726b895bc2e2",
                         help="Ethernet MAC address of the board (defaullt: 0x726b895bc2e2).")
     parser.add_argument(
-        "--eth-phy", default=0, type=int, help="Ethernet PHY 0 or 1 (default=0)"
-    )
-    parser.add_argument(
         # TODO raise it to 60e6 or whatever fits for ethernet
         "--sys-clk-freq", default=50e6, help="System clock frequency (default: 50MHz)"
     )
@@ -263,7 +261,7 @@ def main():
         sys_clk_freq=args.sys_clk_freq,
         **soc_core_argdict(args)
     )
-    builder = Builder(soc, **builder_argdict(args))
+    builder = Builder(soc, **builder_argdict(args), bios_options = ["TERM_MINI"])
     builder.build(**trellis_argdict(args), run=args.build)
 
     # If requested load the resulting bitstream onto the 5A-75B

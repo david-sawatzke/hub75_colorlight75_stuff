@@ -365,44 +365,33 @@ class RowModule(Module):
         self,
         start: Signal(1),
         clk: Signal(1),
-        collumns_2: int = 6,
+        collumns_2,
+        strip_length_2=0,
     ):
-        pipeline_delay = 1
+        pipeline_delay = 1  # Can't change
         output_delay = 2
         delay = pipeline_delay + output_delay
-        counter_max = (1 << (collumns_2 + 1)) + delay
+        counter_max = (1 << (collumns_2 + strip_length_2 + 1)) + delay
         self.counter = counter = Signal(max=counter_max)
-        self.counter_select = counter_select = Signal(1)
         buffer_counter = Signal(max=counter_max)
         self.buffer_select = buffer_select = Signal(1)
-        output_counter = Signal(collumns_2 + 1)
-        output_select = Signal(1)
-        self.collumn = collumn = Signal(collumns_2)
-        self.shifting_done = shifting_done = Signal(1)
+        self.shifting_done = Signal(1)
         self.comb += [
-            If(counter < delay, output_counter.eq(0)).Else(
-                output_counter.eq(counter - delay)
-            ),
-            If(counter < pipeline_delay, buffer_counter.eq(0)).Else(
-                buffer_counter.eq(counter - pipeline_delay)
-            ),
-            output_select.eq(output_counter & 0x1),
-            buffer_select.eq(buffer_counter & 0x1),
-            counter_select.eq(counter & 0x1),
-            If(counter < counter_max - delay, collumn.eq(counter >> 1)).Else(
-                collumn.eq(0),
-            ),
+            buffer_select.eq(buffer_counter[0]),
         ]
 
         self.sync += [
-            If(output_select < 1, clk.eq(0)).Else(clk.eq(1)),
+            If(buffer_counter < output_delay, clk.eq(0)).Else(
+                clk.eq(buffer_counter[0])
+            ),
+            buffer_counter.eq(counter),
             If((counter == 0) & start,
                 counter.eq(1))
             .Elif((counter == (counter_max - 1)),
                   counter.eq(0))
             .Elif((counter > 0),
                   counter.eq(counter + 1)),
-            shifting_done.eq(counter == (counter_max - 1))
+            self.shifting_done.eq(counter == (counter_max - 1))
         ]
 
 

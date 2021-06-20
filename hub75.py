@@ -339,39 +339,39 @@ class RamAddressGenerator(Module):
         row: Signal(4),
         image_width: Signal(16),
         panel_config,
-        collumns_2: int = 6,
+        collumns_2,
+        strip_length_2=0,
     ):
-        self.counter = Signal(collumns_2 + 4)
-        self.counter_select = Signal(4)
-        self.collumn = Signal(collumns_2)
+        outputs_2 = 3
+        counter = Signal(collumns_2 + 1 + strip_length_2 + outputs_2)
+        counter_select = Signal(strip_length_2 + outputs_2)
+        collumn = counter[:collumns_2]
+        half_select = counter[collumns_2]
         self.adr = Signal(32)
         self.started = Signal(1)
-        self.start = Signal(1)
         self.comb += [
-            self.counter_select.eq(self.counter >> collumns_2),
-            self.collumn.eq(self.counter & ((1 << collumns_2) - 1)),
+            counter_select.eq(counter[(collumns_2 + 1):]),
         ]
 
         self.sync += [
-            If(start,
-                self.start.eq(True),
-               ),
-            If((self.counter == 0) & self.start,
-                self.counter.eq(1),
-                self.start.eq(False))
-            .Elif((self.counter == ((1 << (collumns_2 + 4)) - 1)) & enable,
-                  self.counter.eq(0))
-            .Elif((self.counter > 0) & enable,
-                  self.counter.eq(self.counter + 1)
+            If((counter == 0) & start,
+                self.started.eq(True),
+                counter.eq(1))
+            .Elif((counter == (
+                (1 << (collumns_2 + 1 + strip_length_2 + outputs_2)) - 1))
+                  & enable,
+                  self.started.eq(False),
+                  counter.eq(0))
+            .Elif(self.started & enable,
+                  counter.eq(counter + 1)
                   ),
-            If(enable | self.start,
-                self.started.eq(self.start | (self.counter != 0)),
+            If(enable | (start & ~self.started),
                 self.adr.eq(
                     sdram_offset
-                    + (row + (self.counter_select & 0b1) * 16 +
-                        panel_config[self.counter_select >> 1].fields.y * 32)
-                    * image_width + self.collumn
-                    + panel_config[self.counter_select >> 1].fields.x * 32
+                    + (row + half_select * 16 +
+                        panel_config[counter_select].fields.y * 32)
+                    * image_width + collumn
+                    + panel_config[counter_select].fields.x * 32
                 ))
         ]
 

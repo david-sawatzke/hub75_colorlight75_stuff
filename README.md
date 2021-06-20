@@ -2,8 +2,10 @@
 ## Dependencies
 - yosys
 - trellis
+- nextpnr
 - ecpprog
 - python
+- pypng
 - ...
 
 ## Install litex

@@ -265,11 +265,7 @@ class RamToBufferReader(Module):
         self.sync += [
             palette_data_buffer.eq(ram_data & 0x0FFFFFF),
             palette_data_valid.eq(ram_valid),
-            If(ram_done & (~palette_data_done),
-               palette_data_done.eq(True),
-               ).Else(
-                palette_data_done.eq(ram_done),
-            )
+            palette_data_done.eq(ram_done),
         ]
 
         # Gamma Correction
@@ -282,22 +278,18 @@ class RamToBufferReader(Module):
         self.sync += [
             If(palette_data_valid,
                gamma_data.eq(
-                   gamma_lut_r[palette_data & 0xFF]
-                   | (gamma_lut_g[(palette_data >> 8) & 0xFF] << 8)
-                   | (gamma_lut_b[(palette_data >> 16) & 0xFF] << 16)
+                   gamma_lut_r[palette_data[:8]]
+                   | (gamma_lut_g[palette_data[8:16]] << 8)
+                   | (gamma_lut_b[palette_data[16:24]] << 16)
                )
                ),
             gamma_data_valid.eq(palette_data_valid),
-            If(palette_data_done & (~gamma_data_done),
-               gamma_data_done.eq(True),
-               ).Else(
-                gamma_data_done.eq(palette_data_done),
-            )
+            gamma_data_done.eq(palette_data_done),
         ]
 
         # Buffer Writer
         buffer_done = Signal()
-        buffer_counter = Signal(collumns_2 + 4)
+        buffer_counter = Signal(collumns_2 + 1 + 3)
         buffer_select = Signal(3)
         buffer_address = Signal(collumns_2 + 1)
 
@@ -309,9 +301,9 @@ class RamToBufferReader(Module):
                 )
             ]
         self.comb += [
-            buffer_select.eq(buffer_counter >> (collumns_2 + 1)),
-            buffer_address.eq(((buffer_counter & ((1 << collumns_2) - 1)) << 1)
-                             | ((buffer_counter & (1 << collumns_2)) != 0)),
+            buffer_select.eq(buffer_counter[collumns_2 + 1:]),
+            buffer_address.eq((buffer_counter[:collumns_2] << 1)
+                              | buffer_counter[collumns_2]),
         ]
         # TODO Check if data & adress match
         self.sync += [
@@ -322,12 +314,9 @@ class RamToBufferReader(Module):
                buffer_counter.eq(buffer_counter + 1),)
             .Elif(gamma_data_done & (~buffer_done),
                   buffer_write_port[buffer_select - 1].we.eq(False),
-                  buffer_done.eq(True),
                   buffer_counter.eq(0),
-                  running.eq(False),)
-            .Else(
-                buffer_done.eq(gamma_data_done)
-            )
+                  running.eq(False)),
+            buffer_done.eq(gamma_data_done)
         ]
 
 

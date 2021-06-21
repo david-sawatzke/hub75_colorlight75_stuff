@@ -127,7 +127,7 @@ class FrameController(Module):
 
 class RowController(Module):
     def __init__(self, hub75_common, outputs_specific, output_config,
-                 panel_config, read_port, collumns_2=6):
+                 panel_config, read_port, collumns_2=6, strip_length_2=0):
         self.specials.palette_memory = palette_memory = Memory(
             width=32, depth=256, name="palette"
         )
@@ -143,7 +143,7 @@ class RowController(Module):
             # A quarter is not needed and (somewhat) easily used
             for _ in range(8):
                 row_buffer = Memory(
-                    width=32, depth=1 << (collumns_2 + 1),
+                    width=32, depth=1 << (collumns_2 + strip_length_2 + 1),
                 )
                 row_writer = row_buffer.get_port(write_capable=True)
                 row_reader = row_buffer.get_port()
@@ -157,34 +157,34 @@ class RowController(Module):
 
         shifting_buffer = Signal()
         mem_start = Signal()
+        row_start = Signal()
         self.submodules.buffer_reader = RamToBufferReader(
             mem_start, (hub75_common.row_select + 1) & 0xF,
             output_config.indexed, output_config.width, panel_config,
             read_port, row_writers[~shifting_buffer], palette_memory,
-            collumns_2)
-
-        row_start = Signal()
-        self.submodules.row_module = hub75_common.row = RowModule(
-            row_start, hub75_common.clk, collumns_2
+            collumns_2, strip_length_2)
+        self.submodules.row_module = RowModule(
+            row_start, hub75_common.clk, collumns_2, strip_length_2
         )
 
-        self.submodules.specific = Output(hub75_common, outputs_specific,
-                        row_readers[shifting_buffer], self.row_module.counter)
-        running = Signal()
+        self.submodules.output = Output(outputs_specific,
+            row_readers[shifting_buffer], self.row_module.counter,
+            hub75_common.output_bit, self.row_module.buffer_select
+        )
 
-        self.submodules.fsm = fsm = FSM(reset_state="IDLE")
-        fsm.act("IDLE",
+        self.submodules.fsm = FSM(reset_state="IDLE")
+        self.fsm.act("IDLE",
                 If((hub75_common.start_shifting & (hub75_common.output_bit == 7)),
                    mem_start.eq(True),
                    row_start.eq(True),
                    NextState("SHIFT_OUT"))
                 .Elif((hub75_common.start_shifting & (hub75_common.output_bit != 7)),
                       row_start.eq(True),
-                      NextState("SHIFT_OUT")
-                      )
-                )
-        fsm.act("SHIFT_OUT",
-                running.eq(True),
+                      NextState("SHIFT_OUT"))
+                .Else(
+                    hub75_common.shifting_done.eq(True),
+                ))
+        self.fsm.act("SHIFT_OUT",
                 If((hub75_common.output_bit == 0) & self.row_module.shifting_done
                    & self.buffer_reader.done,
                    NextValue(shifting_buffer, ~shifting_buffer),
@@ -192,14 +192,6 @@ class RowController(Module):
                 If((hub75_common.output_bit != 0) & self.row_module.shifting_done,
                    NextState("IDLE"))
                 )
-        self.comb += [
-            # Eliminate the delay
-            hub75_common.shifting_done.eq(
-                ~(running | hub75_common.start_shifting)),
-        ]
-
-        self.sync += []
-
 
 class RamToBufferReader(Module):
     def __init__(
@@ -366,7 +358,7 @@ class RowModule(Module):
         start: Signal(1),
         clk: Signal(1),
         collumns_2,
-        strip_length_2=0,
+        strip_length_2,
     ):
         pipeline_delay = 1  # Can't change
         output_delay = 2
@@ -396,7 +388,7 @@ class RowModule(Module):
 
 
 class Output(Module):
-    def __init__(self, hub75_common, outputs_specific, buffer_readers, address):
+    def __init__(self, outputs_specific, buffer_readers, address, output_bit, buffer_select):
         for i in range(8):
             out = outputs_specific[i]
             r_pins = Array([out.r0, out.r1])
@@ -406,20 +398,20 @@ class Output(Module):
 
             self.submodules += RowColorOutput(
                 r_pins,
-                hub75_common.output_bit,
-                hub75_common.row.buffer_select,
+                output_bit,
+                buffer_select,
                 buffer_reader.dat_r[0:8],
             )
             self.submodules += RowColorOutput(
                 g_pins,
-                hub75_common.output_bit,
-                hub75_common.row.buffer_select,
+                output_bit,
+                buffer_select,
                 buffer_reader.dat_r[8:16],
             )
             self.submodules += RowColorOutput(
                 b_pins,
-                hub75_common.output_bit,
-                hub75_common.row.buffer_select,
+                output_bit,
+                buffer_select,
                 buffer_reader.dat_r[16:24],
             )
 

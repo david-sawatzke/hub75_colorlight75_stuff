@@ -62,59 +62,39 @@ class FrameController(Module):
     ):
         self.start_shifting = start_shifting = Signal(1)
         self.shifting_done = shifting_done = Signal(1)
-        self.brightness_bits = brightness_bits
         self.clk = outputs_common.clk
         counter_max = 8
 
         counter = Signal(max=counter_max)
         self.output_bit = brightness_bit = Signal(max=brightness_bits)
-        brightness_counter = Signal(
-            max=(1 << brightness_bits) * brightness_psc)
+        brightness_counter = Signal(max=(1 << brightness_bits) * brightness_psc)
         row_active = Signal(4)
         self.row_select = row_shifting = Signal(4)
-        fsm = FSM(reset_state="RST")
-        self.submodules.fsm = fsm
-        fsm.act(
-            "RST",
-            outputs_common.lat.eq(0),
-            start_shifting.eq(1),
-            NextState("WAIT"),
-        )
-        fsm.act(
-            "WAIT",
-            outputs_common.lat.eq(0),
-            start_shifting.eq(0),
-            If(
-                ((brightness_counter == 0) & shifting_done & enable),
-                NextState("LATCH"),
-            ),
-        )
-        fsm.act(
-            "LATCH",
-            outputs_common.lat.eq(1),
-            If(
-                # TODO Does this do anything useful?
-                # Seems pretty free-running
-                counter == 0,
-                NextValue(brightness_counter,
-                          (1 << brightness_bit) * brightness_psc),
+        self.submodules.fsm = fsm = FSM(reset_state="RST")
+        fsm.act("RST",
                 start_shifting.eq(1),
+                NextState("WAIT"))
+        fsm.act("WAIT",
+                If((brightness_counter == 0) & shifting_done & enable,
+                    NextValue(counter, 0),
+                    NextState("LATCH")))
+        fsm.act("LATCH",
+                outputs_common.lat.eq(1),
                 If(
-                    brightness_bit != 0,
-                    NextValue(row_active, row_shifting),
-                    NextValue(brightness_bit, brightness_bit - 1),)
-                .Else(
-                    NextValue(row_shifting, row_shifting + 1),
-                    NextValue(brightness_bit, brightness_bits - 1),
-                ),
-                NextState("WAIT"),)
-            .Else(
-                start_shifting.eq(0),
-            ),
-        )
+                    counter == counter_max - 1,
+                    NextValue(brightness_counter,
+                              (1 << brightness_bit) * brightness_psc),
+                    start_shifting.eq(1),
+                    If(brightness_bit != 0,
+                        NextValue(row_active, row_shifting),
+                        NextValue(brightness_bit, brightness_bit - 1),)
+                    .Else(
+                        NextValue(row_shifting, row_shifting + 1),
+                        NextValue(brightness_bit, brightness_bits - 1),
+                    ),
+                    NextState("WAIT")))
         self.sync += [
             counter.eq(counter + 1),
-            If(counter == counter_max - 1, counter.eq(0)),
             If(brightness_counter != 0, brightness_counter.eq(
                 brightness_counter - 1)),
         ]

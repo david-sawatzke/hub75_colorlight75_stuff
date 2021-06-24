@@ -68,12 +68,14 @@ static void help(void) {
   puts("help                            - this command");
   puts("reboot                          - reboot CPU");
   puts("display                         - display test");
+  puts("link                            - get link status");
   puts("load                            - load normal image");
   puts("load_spi                        - load spi image");
   puts("load_indexed                    - load indexed image");
   puts("on                              - turn display on");
   puts("off                             - turn display off");
   puts("write [adr] [dat]               - write data");
+  puts("read [adr]                     - read data");
 }
 
 static void reboot(void) { ctrl_reset_write(1); }
@@ -85,6 +87,13 @@ static void display(void) {
     *palette0 = 0xFF0088;
   } else {
     *palette0 = 0x000000;
+  }
+}
+static void link_status(void) {
+  if (ethphy_rx_inband_status_link_status_read()) {
+    puts("Link up");
+  } else {
+    puts("Link down");
   }
 }
 
@@ -102,6 +111,8 @@ static void console_service(void) {
     reboot();
   else if (strcmp(token, "display") == 0)
     display();
+  else if (strcmp(token, "link") == 0)
+    link_status();
   else if (strcmp(token, "on") == 0)
     hub75_ctrl_enabled_write(1);
   else if (strcmp(token, "off") == 0)
@@ -119,6 +130,12 @@ static void console_service(void) {
     volatile uint32_t *ptr = (volatile uint32_t *)adr;
     *ptr = dat;
     flush_l2_cache();
+  } else if (strcmp(token, "read") == 0) {
+    char *endptr;
+    uint32_t adr = strtol(get_token(&str), &endptr, 16);
+    volatile uint32_t *ptr = (volatile uint32_t *)adr;
+    uint32_t dat = *ptr;
+    printf("%x", dat);
   } else {
     puts("Command not available!");
   }

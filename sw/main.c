@@ -3,6 +3,7 @@
 #include <string.h>
 
 #include "img_utils.h"
+#include "spi.h"
 #include <console.h>
 #include <generated/csr.h>
 #include <irq.h>
@@ -75,7 +76,8 @@ static void help(void) {
   puts("on                              - turn display on");
   puts("off                             - turn display off");
   puts("write [adr] [dat]               - write data");
-  puts("read [adr]                     - read data");
+  puts("read [adr]                      - read data");
+  puts("read_spi [adr]                  - read spi data");
 }
 
 static void reboot(void) { ctrl_reset_write(1); }
@@ -135,7 +137,12 @@ static void console_service(void) {
     uint32_t adr = strtol(get_token(&str), &endptr, 16);
     volatile uint32_t *ptr = (volatile uint32_t *)adr;
     uint32_t dat = *ptr;
-    printf("%x", dat);
+    printf("0x%x\n", dat);
+  } else if (strcmp(token, "read_spi") == 0) {
+    char *endptr;
+    uint32_t adr = strtol(get_token(&str), &endptr, 16);
+    uint32_t dat = spi_read_byte(adr);
+    printf("0x%x: 0x%x\n", adr, dat);
   } else {
     puts("Command not available!");
   }
@@ -151,8 +158,6 @@ int main(void) {
   puts("\nColorlight - Software built "__DATE__
        " "__TIME__
        "\n");
-
-  init_img_from_header();
 
   help();
   prompt();

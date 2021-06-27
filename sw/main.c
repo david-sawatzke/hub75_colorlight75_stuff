@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "artdmx.h"
 #include "img_utils.h"
 #include "spi.h"
 #include <console.h>
@@ -128,6 +129,8 @@ static void console_service(void) {
     init_img_indexed_from_header();
   else if (strcmp(token, "save_image_spi") == 0)
     spi_program_image(64 * 32 * 4);
+  else if (strcmp(token, "hidden_nonechowrite") == 0)
+    nonechowrite();
   else if (strcmp(token, "write") == 0) {
     char *endptr;
     uint32_t adr = strtol(get_token(&str), &endptr, 16);

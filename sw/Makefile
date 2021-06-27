@@ -9,7 +9,7 @@ endif
 include $(BUILD_DIR)/software/include/generated/variables.mak
 include $(SOC_DIRECTORY)/software/common.mak
 
-OBJECTS=isr.o main.o img_utils.o img_data.o spi.o
+OBJECTS=isr.o main.o img_utils.o img_data.o spi.o artdmx.o
 
 LDFLAGS := $(LDFLAGS) --gc-sections
 

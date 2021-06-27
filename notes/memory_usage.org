@@ -22,6 +22,10 @@ Idea:
 - 12 KByte palette data
 - 4 Image storage locations
   Either one full color image or 3 indexed images
+** Reality
+1MB Gateware
+512kB Code
+512kB image
 * SDRAM split up
 - We need a split between hub75 ram and application ram
   - Just half/half?
@@ -37,6 +41,7 @@ Header:
 | length (32) (of image data exkl. palette) | - |            |
 |                                0xD1581A40 | - |            |
 |                                0xDA5A0001 | - |            |
+256-4*4=240 Bytes filler
 Contents:
 | display array                         |
 | palette, length 1024 bytes if indexed |

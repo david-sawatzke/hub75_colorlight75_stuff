@@ -76,6 +76,7 @@ static void help(void) {
   puts("on                              - turn display on");
   puts("off                             - turn display off");
   puts("write [adr] [dat]               - write data");
+  puts("save_image_spi                  - write sdram image to spi");
   puts("read [adr]                      - read data");
   puts("read_spi [adr]                  - read spi data");
 }
@@ -125,6 +126,8 @@ static void console_service(void) {
     init_img_from_spi();
   else if (strcmp(token, "load_indexed") == 0)
     init_img_indexed_from_header();
+  else if (strcmp(token, "save_image_spi") == 0)
+    spi_program_image(64 * 32 * 4);
   else if (strcmp(token, "write") == 0) {
     char *endptr;
     uint32_t adr = strtol(get_token(&str), &endptr, 16);
@@ -154,6 +157,7 @@ int main(void) {
   irq_setmask(0);
   irq_setie(1);
 #endif
+  spi_init();
   uart_init();
   puts("\nColorlight - Software built "__DATE__
        " "__TIME__

@@ -33,6 +33,8 @@ write_32bit(f, 0 << 31 | (width & 0xFFFF))
 write_32bit(f, len(img[0]))
 write_32bit(f, 0xD1581A40)
 write_32bit(f, 0xDA5A0001)
+for _ in range(240//4):
+    write_32bit(f, 0x0)
 for data in img[0]:
     write_32bit(f, data)
 f.close()

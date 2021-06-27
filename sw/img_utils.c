@@ -60,10 +60,11 @@ void init_img_from_spi(void) {
 
   uint16_t width = spi_img_base[0] & 0xFFFF;
   uint16_t length = spi_img_base[1];
+  spi_img_base += 256 / 4;
   volatile uint32_t *sdram_img_base =
       (volatile uint32_t *)(MAIN_RAM_BASE + (MAIN_RAM_SIZE / 2));
   for (uint32_t i = 0; i < length; i++) {
-    *(sdram_img_base + i) = *(spi_img_base + i + 4);
+    *(sdram_img_base + i) = *(spi_img_base + i);
   }
 
   flush_l2_cache();

@@ -19,15 +19,19 @@ class Hub75(Module, AutoCSR):
             CSRField("enabled", description="Enable the output"),
             CSRField("width", description="Width of the image", size=16),
         ])
+        chain_length_2 = 2
         panel_config = Array()
-        for i in range(8):
-            csr = CSRStorage(name="panel" + str(i), fields=[
-                # CSRField("vert", description="Module is vertical if enabled"),
-                CSRField("x", description="x position in multiples of 32", size=8),
-                CSRField("y", description="y position in multiples of 32", size=8),
-            ])
-            setattr(self, "panel" + str(i), csr)
-            panel_config.append(csr)
+        for panel_output in range(8):
+                for chain_pos in range(1 << chain_length_2):
+                    name = "panel" + str(panel_output) + "_" + str(chain_pos)
+                    csr = CSRStorage(name=name,
+                        fields=[
+                        CSRField("x", description="x position in multiples of 32", size=8, offset=0),
+                        CSRField("y", description="y position in multiples of 32", size=8, offset=8),
+                        # CSRField("vert", description="Module is vertical if enabled", offset=16),
+                    ])
+                    setattr(self, name, csr)
+                    panel_config.append(csr)
 
         read_port = sdram.crossbar.get_port(mode="read", data_width=32)
         output_config = SimpleNamespace(
@@ -40,7 +44,8 @@ class Hub75(Module, AutoCSR):
             brightness_psc=8,
         )
         self.submodules.specific = RowController(
-            self.common, pins, output_config, panel_config, read_port
+            self.common, pins, output_config, panel_config, read_port,
+            chain_length_2=chain_length_2
         )
         self.palette_memory = self.specific.palette_memory
 
@@ -107,7 +112,7 @@ class FrameController(Module):
 
 class RowController(Module):
     def __init__(self, hub75_common, outputs_specific, output_config,
-                 panel_config, read_port, collumns_2=6, strip_length_2=0):
+                 panel_config, read_port, collumns_2=6, chain_length_2=0):
         self.specials.palette_memory = palette_memory = Memory(
             width=32, depth=256, name="palette"
         )
@@ -123,7 +128,7 @@ class RowController(Module):
             # A quarter is not needed and (somewhat) easily used
             for _ in range(8):
                 row_buffer = Memory(
-                    width=32, depth=1 << (collumns_2 + strip_length_2 + 1),
+                    width=32, depth=1 << (collumns_2 + chain_length_2 + 1),
                 )
                 row_writer = row_buffer.get_port(write_capable=True)
                 row_reader = row_buffer.get_port()
@@ -142,9 +147,9 @@ class RowController(Module):
             mem_start, (hub75_common.row_select + 1) & 0xF,
             output_config.indexed, output_config.width, panel_config,
             read_port, row_writers[~shifting_buffer], palette_memory,
-            collumns_2, strip_length_2)
+            collumns_2, chain_length_2)
         self.submodules.row_module = RowModule(
-            row_start, hub75_common.clk, collumns_2, strip_length_2
+            row_start, hub75_common.clk, collumns_2, chain_length_2
         )
 
         self.submodules.output = Output(outputs_specific,
@@ -157,19 +162,22 @@ class RowController(Module):
                 If((hub75_common.start_shifting & (hub75_common.output_bit == 7)),
                    mem_start.eq(True),
                    row_start.eq(True),
-                   NextState("SHIFT_OUT"))
+                   NextState("WAIT_TILL_START"))
                 .Elif((hub75_common.start_shifting & (hub75_common.output_bit != 7)),
                       row_start.eq(True),
-                      NextState("SHIFT_OUT"))
+                      NextState("WAIT_TILL_START"))
                 .Else(
                     hub75_common.shifting_done.eq(True),
                 ))
+        self.fsm.act("WAIT_TILL_START",
+                If(self.row_module.shifting,
+                   NextState("SHIFT_OUT")))
         self.fsm.act("SHIFT_OUT",
-                If((hub75_common.output_bit == 0) & self.row_module.shifting_done
+                If((hub75_common.output_bit == 0) & ~self.row_module.shifting
                    & self.buffer_reader.done,
                    NextValue(shifting_buffer, ~shifting_buffer),
                    NextState("IDLE")),
-                If((hub75_common.output_bit != 0) & self.row_module.shifting_done,
+                If((hub75_common.output_bit != 0) & ~self.row_module.shifting,
                    NextState("IDLE"))
                 )
 
@@ -185,7 +193,7 @@ class RamToBufferReader(Module):
             buffer_write_port,
             palette_memory,
             collumns_2,
-            strip_length_2=0,
+            chain_length_2=0,
     ):
         self.done = Signal()
         done = Signal()
@@ -197,14 +205,14 @@ class RamToBufferReader(Module):
         self.submodules.reader = LiteDRAMDMAReader(mem_read_port)
         self.submodules.ram_adr = RamAddressGenerator(
             start, self.reader.sink.ready, row, image_width, panel_config,
-            collumns_2, strip_length_2)
+            collumns_2, chain_length_2)
 
         ram_valid = self.reader.source.valid
         ram_data = self.reader.source.data
         ram_done = Signal()
         self.comb += [
             self.reader.sink.address.eq(self.ram_adr.adr),
-            self.reader.sink.valid.eq(self.ram_adr.started),
+            self.reader.sink.valid.eq(self.ram_adr.valid),
             ram_done.eq((self.ram_adr.started == False)
                         & (self.reader.rsv_level == 0)
                         & (self.reader.source.valid == False))
@@ -244,20 +252,20 @@ class RamToBufferReader(Module):
         gamma_lut = _get_gamma_corr()
         gamma_data_done = Signal()
         gamma_data_valid = Signal()
-        gamma_data = Signal(24)
+        gamma_data = Signal().like(palette_data)
         self.sync += [
-            gamma_data.eq(Cat(gamma_lut[palette_data[:8]],
-                              gamma_lut[palette_data[8:16]],
-                              gamma_lut[palette_data[16:24]])),
+            gamma_data.eq(palette_data),#Cat(gamma_lut[palette_data[:8]],
+                              #gamma_lut[palette_data[8:16]],
+                              #gamma_lut[palette_data[16:24]])),
             gamma_data_valid.eq(palette_data_valid),
             gamma_data_done.eq(palette_data_done),
         ]
 
         # Buffer Writer
         buffer_done = Signal()
-        buffer_counter = Signal(collumns_2 + 1 + 3)
+        buffer_counter = Signal(collumns_2 + 1 + chain_length_2 + 3)
         buffer_select = Signal(3)
-        buffer_address = Signal(collumns_2 + 1)
+        buffer_address = Signal(collumns_2 + 1 + chain_length_2)
 
         for i in range(8):
             self.sync += [
@@ -267,11 +275,11 @@ class RamToBufferReader(Module):
                 )
             ]
         self.comb += [
-            buffer_select.eq(buffer_counter[collumns_2 + 1 + strip_length_2:]),
+            buffer_select.eq(buffer_counter[collumns_2 + 1 + chain_length_2:]),
             buffer_address.eq(
                 Cat(buffer_counter[collumns_2],
                     buffer_counter[:collumns_2],
-                    buffer_counter[collumns_2 + 1:collumns_2 + 1 + strip_length_2])
+                    buffer_counter[collumns_2 + 1:collumns_2 + 1 + chain_length_2])
             ), ]
         # TODO Check if data & adress match
         self.sync += [
@@ -296,39 +304,63 @@ class RamAddressGenerator(Module):
         image_width: Signal(16),
         panel_config,
         collumns_2,
-        strip_length_2,
+        chain_length_2,
     ):
-        outputs_2 = 3
-        counter = Signal(collumns_2 + 1 + strip_length_2 + outputs_2)
-        counter_select = Signal(strip_length_2 + outputs_2)
-        collumn = counter[:collumns_2]
-        half_select = counter[collumns_2]
-        self.adr = Signal(32)
-        self.started = Signal(1)
-        self.comb += [
-            counter_select.eq(counter[(collumns_2 + 1):]),
-        ]
+        outputs_2 = 2
+        counter = Signal(collumns_2 + 1 + chain_length_2 + outputs_2)
+        running = Signal(1)
+        self.started = Signal()
+        delay = 2
+        en = Signal()
+        counter_select = Signal(chain_length_2 + outputs_2)
 
+        # Started
+        self.comb += [
+            en.eq((counter < delay) | enable),
+            counter_select.eq(counter[(collumns_2 + 1):]),
+            running.eq(start | (counter != 0)),
+        ]
         self.sync += [
+            If(start, self.started.eq(True)),
             If((counter == 0) & start,
                 self.started.eq(True),
                 counter.eq(1))
+            .Elif(counter == 0)
             .Elif((counter == (
-                (1 << (collumns_2 + 1 + strip_length_2 + outputs_2)) - 1))
-                  & enable,
-                  self.started.eq(False),
+                (1 << (collumns_2 + 1 + chain_length_2 + outputs_2)) - 1)) & en,
                   counter.eq(0))
-            .Elif(self.started & enable,
-                  counter.eq(counter + 1)
-                  ),
-            If(enable | start,
+            .Elif((counter > 0) & en,
+                  counter.eq(counter + 1)),
+        ]
+
+        # Delay 1
+        cur_panel_config = Signal().like(panel_config[0].storage)
+        config_lookup_valid = Signal()
+        counter_previous = Signal().like(counter)
+        collumn = counter_previous[:collumns_2]
+        half_select = counter_previous[collumns_2]
+        self.sync += [
+            If(en,
+                cur_panel_config.eq(panel_config[counter_select].storage),
+                config_lookup_valid.eq(running),
+                counter_previous.eq(counter))
+        ]
+
+        # Delay 2
+        self.adr = Signal(32)
+        self.valid = Signal(1)
+        # counter is at 0 when we start
+        self.sync += [
+            If(en,
+               self.valid.eq(config_lookup_valid),
                 self.adr.eq(
                     sdram_offset
                     + (row + half_select * 16 +
-                        panel_config[counter_select].fields.y * 32)
+                        ((cur_panel_config >> 8) & 0xFF) * 32)
                     * image_width + collumn
-                    + panel_config[counter_select].fields.x * 32
-                ))
+                    + (cur_panel_config & 0xFF) * 32),
+                If(self.valid & (~config_lookup_valid),
+                    self.started.eq(False)))
         ]
 
 
@@ -338,16 +370,16 @@ class RowModule(Module):
         start: Signal(1),
         clk: Signal(1),
         collumns_2,
-        strip_length_2,
+        chain_length_2,
     ):
         pipeline_delay = 1  # Can't change
         output_delay = 2
         delay = pipeline_delay + output_delay
-        counter_max = (1 << (collumns_2 + strip_length_2 + 1)) + delay
+        counter_max = (1 << (collumns_2 + chain_length_2 + 1)) + delay
         self.counter = counter = Signal(max=counter_max)
         buffer_counter = Signal(max=counter_max)
         self.buffer_select = buffer_select = Signal(1)
-        self.shifting_done = Signal(1)
+        self.shifting = Signal(1)
         self.comb += [
             buffer_select.eq(buffer_counter[0]),
         ]
@@ -358,12 +390,13 @@ class RowModule(Module):
             ),
             buffer_counter.eq(counter),
             If((counter == 0) & start,
-                counter.eq(1))
+                counter.eq(1),
+                self.shifting.eq(True))
             .Elif((counter == (counter_max - 1)),
-                  counter.eq(0))
+                  counter.eq(0),
+                  self.shifting.eq(False))
             .Elif((counter > 0),
                   counter.eq(counter + 1)),
-            self.shifting_done.eq(counter == (counter_max - 1))
         ]
 
 

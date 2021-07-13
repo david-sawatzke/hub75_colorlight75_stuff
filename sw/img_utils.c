@@ -8,12 +8,12 @@
 void set_common_params(void);
 
 void set_common_params(void) {
-  hub75_panel0_y_write(0);
-  hub75_panel1_y_write(1);
-  hub75_panel2_x_write(2);
-  hub75_panel2_y_write(0);
-  hub75_panel3_x_write(2);
-  hub75_panel3_y_write(1);
+  hub75_panel0_2_x_write(0);
+  hub75_panel0_2_y_write(0);
+  hub75_panel0_3_x_write(2);
+  hub75_panel0_3_y_write(0);
+  hub75_panel1_3_x_write(0);
+  hub75_panel1_3_y_write(1);
   hub75_ctrl_enabled_write(1);
 }
 

@@ -79,7 +79,6 @@ static void help(void) {
   puts("write [adr] [dat]               - write data");
   puts("save_image_spi                  - write sdram image to spi");
   puts("read [adr]                      - read data");
-  puts("read_spi [adr]                  - read spi data");
 }
 
 static void reboot(void) { ctrl_reset_write(1); }
@@ -144,11 +143,6 @@ static void console_service(void) {
     volatile uint32_t *ptr = (volatile uint32_t *)adr;
     uint32_t dat = *ptr;
     printf("0x%x\n", dat);
-  } else if (strcmp(token, "read_spi") == 0) {
-    char *endptr;
-    uint32_t adr = strtol(get_token(&str), &endptr, 16);
-    uint32_t dat = spi_read_byte(adr);
-    printf("0x%x: 0x%x\n", adr, dat);
   } else {
     puts("Command not available!");
   }

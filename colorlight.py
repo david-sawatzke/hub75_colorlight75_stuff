@@ -133,7 +133,7 @@ class BaseSoC(SoCCore):
             platform,
             sys_clk_freq,
             cpu_type="vexriscv",
-            cpu_variant="minimal",
+            cpu_variant="imac",
             cpu_freq=sys_clk_freq,
             ident="LiteX SoC on Colorlight 5A-75B", ident_version=True,
             integrated_rom_size=0x10000,
@@ -261,7 +261,10 @@ def main():
         sys_clk_freq=args.sys_clk_freq,
         **soc_core_argdict(args)
     )
-    builder = Builder(soc, **builder_argdict(args), bios_options = ["TERM_MINI"])
+    builder_options = builder_argdict(args)
+    builder_options["csr_svd"] = "sw_rust/litex-pac/colorlight.svd"
+    # builder_options["memory_x"] = "sw_rust/litex-pac/memory.x"
+    builder = Builder(soc, **builder_options, bios_options = ["TERM_MINI"])
     builder.build(**trellis_argdict(args), run=args.build)
 
     # If requested load the resulting bitstream onto the 5A-75B

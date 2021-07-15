@@ -1,0 +1,24 @@
+[package]
+name = "barsign-disp"
+version = "0.0.1"
+authors = [ "David Sawatzke <d-git@sawatzke.dev>" ]
+edition = "2018"
+
+[dependencies]
+litex-pac = { path = "../litex-pac", features = ["rt"]}
+riscv-rt = "0.8.0"
+panic-halt = "0.2"
+litex-hal = {git = "https://github.com/pepijndevos/rust-litex-hal", rev="2f46421f59930d16d32c79ebe5839660574a8d3d"}
+embedded-hal = {version = "0.2.4", features = ["unproven"]}
+nb = "1"
+riscv = "0.6"
+menu = "0.3"
+
+
+[profile.release]
+# It will be removed when converting to a binary
+debug = true
+
+# Improve code generation
+lto = true
+codegen-units = 1

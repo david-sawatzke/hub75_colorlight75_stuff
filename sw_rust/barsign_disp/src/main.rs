@@ -5,17 +5,13 @@ use panic_halt as _;
 
 use embedded_hal::blocking::delay::DelayMs;
 use embedded_hal::blocking::serial::Write;
-use litex_hal as hal;
+use embedded_hal::serial::Read;
+pub mod hal;
+pub mod menu;
+use hal::*;
 use litex_pac as pac;
+use nb::block;
 use riscv_rt::entry;
-
-hal::uart! {
-    UART: pac::UART,
-}
-
-hal::timer! {
-    TIMER: pac::TIMER0,
-}
 #[entry]
 fn main() -> ! {
     let peripherals = pac::Peripherals::take().unwrap();
@@ -30,11 +26,12 @@ fn main() -> ! {
         registers: peripherals.TIMER0,
         sys_clk: 50_000_000,
     };
+    let mut buffer = [0u8; 64];
+    let context = menu::Context { serial };
+    let mut r = menu::Runner::new(&menu::ROOT_MENU, &mut buffer, context);
 
-    for _ in 0..5 {
-        delay.delay_ms(1000 as u32);
-        serial.bwrite_all(b"Hello again!\n").unwrap();
+    loop {
+        let mut data = block!(r.context.serial.read()).unwrap();
+        r.input_byte(if data == b'\n' { b'\r' } else { data });
     }
-    peripherals.CTRL.reset.write(|w| w.soc_rst().set_bit());
-    panic!();
 }

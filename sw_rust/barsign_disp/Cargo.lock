@@ -89,6 +89,7 @@ dependencies = [
  "embedded-hal",
  "litex-hal",
  "litex-pac",
+ "menu",
  "nb 1.0.0",
  "panic-halt",
  "riscv",
@@ -227,7 +228,7 @@ checksum = "320cfe77175da3a483efed4bc0adc1968ca050b098ce4f2f1c13a56626128790"
 [[package]]
 name = "litex-hal"
 version = "0.1.0"
-source = "git+https://github.com/pepijndevos/rust-litex-hal?rev=2f46421f59930d16d32c79ebe5839660574a8d3d#2f46421f59930d16d32c79ebe5839660574a8d3d"
+source = "git+https://github.com/david-sawatzke/rust-litex-hal?rev=f4b41163b11d68127bd43f230bd963da3869b5cf#f4b41163b11d68127bd43f230bd963da3869b5cf"
 
 [[package]]
 name = "litex-pac"
@@ -254,6 +255,12 @@ name = "memchr"
 version = "2.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b16bd47d9e329435e309c58469fe0791c2d0d1ba96ec0954152a5ae2b04387dc"
+
+[[package]]
+name = "menu"
+version = "0.3.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b03d7f798bfe97329ad6df937951142eec93886b37d87010502dd25e8cc75fd5"
 
 [[package]]
 name = "miniz_oxide"

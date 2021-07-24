@@ -26,7 +26,7 @@ fn main() -> ! {
 
     let hub75 = hub75::Hub75::new(peripherals.HUB75, peripherals.HUB75_PALETTE);
 
-    let mut delay = TIMER {
+    let _delay = TIMER {
         registers: peripherals.TIMER0,
         sys_clk: 50_000_000,
     };
@@ -35,7 +35,7 @@ fn main() -> ! {
     let mut r = menu::Runner::new(&menu::ROOT_MENU, &mut buffer, context);
 
     loop {
-        let mut data = block!(r.context.serial.read()).unwrap();
+        let data = block!(r.context.serial.read()).unwrap();
         r.input_byte(if data == b'\n' { b'\r' } else { data });
     }
 }

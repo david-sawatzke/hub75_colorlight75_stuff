@@ -1,5 +1,4 @@
 use crate::hal;
-use crate::hub75;
 use crate::hub75::Hub75;
 use embedded_hal::blocking::serial::Write;
 use litex_pac::pac;
@@ -38,6 +37,14 @@ pub const ROOT_MENU: Menu<Context> = Menu {
         },
         &Item {
             item_type: ItemType::Callback {
+                function: default_image,
+                parameters: &[],
+            },
+            command: "default_image",
+            help: Some("Displays the default image"),
+        },
+        &Item {
+            item_type: ItemType::Callback {
                 function: on,
                 parameters: &[],
             },
@@ -70,6 +77,19 @@ fn out_test(_menu: &Menu<Context>, _item: &Item<Context>, _args: &[&str], contex
     hub75.on();
 }
 
+fn default_image(
+    _menu: &Menu<Context>,
+    _item: &Item<Context>,
+    _args: &[&str],
+    context: &mut Context,
+) {
+    use crate::img;
+    let hub75 = &mut context.hub75;
+    let image = img::load_default_image();
+    hub75.set_img_param(image.0, image.1);
+    hub75.write_img_data(0, image.2);
+    hub75.on();
+}
 fn on(_menu: &Menu<Context>, _item: &Item<Context>, _args: &[&str], context: &mut Context) {
     context.hub75.on();
 }

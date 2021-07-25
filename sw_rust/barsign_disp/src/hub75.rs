@@ -34,14 +34,14 @@ impl Hub75 {
     }
     pub fn write_img_data(&mut self, offset: usize, data: impl Iterator<Item = u32>) {
         let sdram = self.hub75_data[offset..].iter_mut();
-        for (sdram, data) in sdram.zip(data) {
+        for (sdram, data) in sdram.zip(data).take(self.length as usize - offset) {
             *sdram = data;
         }
         // TODO flush cache
     }
 
-    pub fn read_img_data<'a>(&'a self) -> impl Iterator<Item = &'a u32> {
-        self.hub75_data[0..self.length as usize].iter()
+    pub fn read_img_data<'a>(&'a self) -> impl Iterator<Item = u32> + 'a {
+        self.hub75_data[0..self.length as usize].iter().copied()
     }
 
     pub fn set_img_param(&mut self, width: u16, length: u32) {

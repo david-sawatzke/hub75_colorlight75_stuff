@@ -1,5 +1,5 @@
 use core::convert::TryInto;
-static IMG_FILE: &'static [u8] = include_bytes!("../../../img_data.bin");
+pub static IMG_FILE: &'static [u8] = include_bytes!("../../../img_data.bin");
 
 pub fn load_default_image() -> (u16, u32, impl Iterator<Item = u32>) {
     load_image(IMG_FILE).expect("Precompiled image should be valid")

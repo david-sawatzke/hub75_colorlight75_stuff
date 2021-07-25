@@ -3,17 +3,15 @@
 
 use panic_halt as _;
 
+use barsign_disp::*;
 use embedded_hal::blocking::delay::DelayMs;
 use embedded_hal::blocking::serial::Write;
 use embedded_hal::serial::Read;
-pub mod hal;
-pub mod hub75;
-pub mod img;
-pub mod menu;
 use hal::*;
 use litex_pac as pac;
 use nb::block;
 use riscv_rt::entry;
+
 #[entry]
 fn main() -> ! {
     let peripherals = pac::Peripherals::take().unwrap();
@@ -25,13 +23,17 @@ fn main() -> ! {
     serial.bwrite_all(b"Hello world!\n").unwrap();
 
     let hub75 = hub75::Hub75::new(peripherals.HUB75, peripherals.HUB75_PALETTE);
-
+    let flash = img_flash::Flash::new(peripherals.SPIFLASH_MMAP);
     let _delay = TIMER {
         registers: peripherals.TIMER0,
         sys_clk: 50_000_000,
     };
     let mut buffer = [0u8; 64];
-    let context = menu::Context { serial, hub75 };
+    let context = menu::Context {
+        serial,
+        hub75,
+        flash,
+    };
     let mut r = menu::Runner::new(&menu::ROOT_MENU, &mut buffer, context);
 
     loop {

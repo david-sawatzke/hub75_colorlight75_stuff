@@ -94,6 +94,7 @@ dependencies = [
  "panic-halt",
  "riscv",
  "riscv-rt",
+ "spi-memory",
 ]
 
 [[package]]
@@ -228,7 +229,7 @@ checksum = "320cfe77175da3a483efed4bc0adc1968ca050b098ce4f2f1c13a56626128790"
 [[package]]
 name = "litex-hal"
 version = "0.1.0"
-source = "git+https://github.com/david-sawatzke/rust-litex-hal?rev=f4b41163b11d68127bd43f230bd963da3869b5cf#f4b41163b11d68127bd43f230bd963da3869b5cf"
+source = "git+https://github.com/david-sawatzke/rust-litex-hal?rev=cd9e00b678a42eacc72b055946b3ae08a76ad85f#cd9e00b678a42eacc72b055946b3ae08a76ad85f"
 
 [[package]]
 name = "litex-pac"
@@ -480,6 +481,16 @@ name = "semver-parser"
 version = "0.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "388a1df253eca08550bef6c72392cfe7c30914bf41df5269b68cbd6ff8f570a3"
+
+[[package]]
+name = "spi-memory"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f94caf9e6bd5673e05be1a3f4113b85cdc7976a1ac8bc2763731ae5a4acee4a9"
+dependencies = [
+ "bitflags",
+ "embedded-hal",
+]
 
 [[package]]
 name = "strsim"

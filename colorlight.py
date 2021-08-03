@@ -133,9 +133,10 @@ class BaseSoC(SoCCore):
             platform,
             sys_clk_freq,
             cpu_type="vexriscv",
-            cpu_variant="imac",
+            cpu_variant="minimal",
             cpu_freq=sys_clk_freq,
-            ident="LiteX SoC on Colorlight 5A-75B", ident_version=True,
+            ident="LiteX SoC on Colorlight 5A-75B",
+            ident_version=True,
             integrated_rom_size=0x10000,
             integrated_ram_size=0x0,
             # Use with `litex_server --uart --uart-port /dev/ttyUSB1`

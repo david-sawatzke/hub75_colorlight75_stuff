@@ -74,19 +74,69 @@ pub const ROOT_MENU: Menu<Context> = Menu {
         },
         &Item {
             item_type: ItemType::Callback {
-                function: check_flash,
-                parameters: &[],
-            },
-            command: "check_flash",
-            help: Some("Check if reading the flash work as expected"),
-        },
-        &Item {
-            item_type: ItemType::Callback {
                 function: off,
                 parameters: &[],
             },
             command: "off",
             help: Some("Turn display off"),
+        },
+        &Item {
+            item_type: ItemType::Callback {
+                function: get_panel_param,
+                parameters: &[
+                    Parameter::Mandatory {
+                        parameter_name: "output",
+                        help: None,
+                    },
+                    Parameter::Mandatory {
+                        parameter_name: "chain_num",
+                        help: None,
+                    },
+                ],
+            },
+            command: "get_panel_param",
+            help: Some("Get virtual location of panel in 32 increments"),
+        },
+        &Item {
+            item_type: ItemType::Callback {
+                function: set_panel_param,
+                parameters: &[
+                    Parameter::Mandatory {
+                        parameter_name: "output",
+                        help: None,
+                    },
+                    Parameter::Mandatory {
+                        parameter_name: "chain_num",
+                        help: None,
+                    },
+                    Parameter::Mandatory {
+                        parameter_name: "x",
+                        help: None,
+                    },
+                    Parameter::Mandatory {
+                        parameter_name: "y",
+                        help: None,
+                    },
+                ],
+            },
+            command: "set_panel_param",
+            help: Some("Set virtual location of panel in 32 increments"),
+        },
+        &Item {
+            item_type: ItemType::Callback {
+                function: set_default_panel_params,
+                parameters: &[],
+            },
+            command: "set_default_panel_params",
+            help: Some("Sets the default panel parameters"),
+        },
+        &Item {
+            item_type: ItemType::Callback {
+                function: check_flash,
+                parameters: &[],
+            },
+            command: "check_flash",
+            help: Some("Check if reading the flash work as expected"),
         },
     ],
     entry: None,
@@ -168,6 +218,66 @@ fn on(_menu: &Menu<Context>, _item: &Item<Context>, _args: &[&str], context: &mu
 
 fn off(_menu: &Menu<Context>, _item: &Item<Context>, _args: &[&str], context: &mut Context) {
     context.hub75.off();
+}
+
+fn get_panel_param(
+    _menu: &Menu<Context>,
+    item: &Item<Context>,
+    args: &[&str],
+    context: &mut Context,
+) {
+    let output: Result<u8, _> = argument_finder(item, args, "output")
+        .unwrap()
+        .unwrap()
+        .parse();
+    let chain_num: Result<u8, _> = argument_finder(item, args, "chain_num")
+        .unwrap()
+        .unwrap()
+        .parse();
+    if output.is_err() || chain_num.is_err() {
+        writeln!(context, "Invalid number given").unwrap();
+        return;
+    }
+    let (x, y) = context
+        .hub75
+        .get_panel_param(output.unwrap(), chain_num.unwrap());
+    writeln!(context, r#"{{"x": {}, "y": {}}}"#, x, y).unwrap();
+}
+fn set_panel_param(
+    _menu: &Menu<Context>,
+    item: &Item<Context>,
+    args: &[&str],
+    context: &mut Context,
+) {
+    let output: Result<u8, _> = argument_finder(item, args, "output")
+        .unwrap()
+        .unwrap()
+        .parse();
+    let chain_num: Result<u8, _> = argument_finder(item, args, "chain_num")
+        .unwrap()
+        .unwrap()
+        .parse();
+    let x: Result<u8, _> = argument_finder(item, args, "x").unwrap().unwrap().parse();
+    let y: Result<u8, _> = argument_finder(item, args, "y").unwrap().unwrap().parse();
+    if output.is_err() || chain_num.is_err() || x.is_err() || y.is_err() {
+        writeln!(context, "Invalid number given").unwrap();
+        return;
+    }
+    context
+        .hub75
+        .set_panel_param(output.unwrap(), chain_num.unwrap(), x.unwrap(), y.unwrap());
+}
+
+fn set_default_panel_params(
+    _menu: &Menu<Context>,
+    _item: &Item<Context>,
+    _args: &[&str],
+    context: &mut Context,
+) {
+    context.hub75.set_panel_param(0, 0, 0, 0);
+    context.hub75.set_panel_param(0, 1, 0, 1);
+    context.hub75.set_panel_param(0, 2, 2, 0);
+    context.hub75.set_panel_param(0, 3, 2, 1);
 }
 
 fn check_flash(

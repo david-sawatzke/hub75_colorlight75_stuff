@@ -41,7 +41,12 @@ Header:
 | length (32) (of image data exkl. palette) | - |            |
 |                                0xD1581A40 | - |            |
 |                                0xDA5A0001 | - |            |
-256-4*4=240 Bytes filler
+Panel Config * 4 * 8:
+output 0, chain 0
+output 0, chain 1
+...
+| reserved (16) | y (8) | x (8) |
+256-4*4-4*8*4=112 Bytes filler
 Contents:
 | display array                         |
 | palette, length 1024 bytes if indexed |

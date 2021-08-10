@@ -1,8 +1,8 @@
 // TODO Add palette
 use litex_pac as pac;
 
-static CHAIN_LENGTH: u8 = 4;
-static OUTPUTS: u8 = 8;
+const CHAIN_LENGTH: u8 = 4;
+const OUTPUTS: u8 = 8;
 
 pub struct Hub75 {
     hub75: pac::HUB75,
@@ -33,6 +33,7 @@ impl Hub75 {
     pub fn off(&mut self) {
         self.hub75.ctrl.modify(|_, w| w.enabled().clear_bit());
     }
+
     pub fn write_img_data(&mut self, offset: usize, data: impl Iterator<Item = u32>) {
         let sdram = self.hub75_data[offset..].iter_mut();
         for (sdram, data) in sdram.zip(data).take(self.length as usize - offset) {
@@ -55,6 +56,23 @@ impl Hub75 {
         (width, self.length)
     }
 
+    pub fn get_panel_params<'a>(&'a self) -> impl Iterator<Item = u32> + 'a {
+        use pac::hub75::PANEL0_0;
+        let panel_adr = &self.hub75.panel0_0 as *const PANEL0_0 as *const u32;
+        let panel_reg: &[u32] =
+            unsafe { core::slice::from_raw_parts(panel_adr, (OUTPUTS * CHAIN_LENGTH) as usize) };
+        panel_reg.iter().copied()
+    }
+    pub fn set_panel_params(&mut self, params: impl Iterator<Item = u32>) {
+        use pac::hub75::PANEL0_0;
+        let panel_adr = &self.hub75.panel0_0 as *const PANEL0_0;
+        let panel_reg: &[PANEL0_0] =
+            unsafe { core::slice::from_raw_parts(panel_adr, (OUTPUTS * CHAIN_LENGTH) as usize) };
+        for (reg, data) in panel_reg.iter().zip(params) {
+            unsafe { reg.write(|w| w.bits(data)) };
+        }
+    }
+
     pub fn set_panel_param(&mut self, output: u8, chain_num: u8, x: u8, y: u8) {
         if output >= OUTPUTS || chain_num >= CHAIN_LENGTH {
             return;
@@ -63,7 +81,7 @@ impl Hub75 {
         let chain_offset = (output * CHAIN_LENGTH + chain_num) as usize;
         let panel_adr = &self.hub75.panel0_0 as *const PANEL0_0;
         let panel_reg: &[PANEL0_0] =
-            unsafe { core::slice::from_raw_parts(panel_adr, (8 * CHAIN_LENGTH) as usize) };
+            unsafe { core::slice::from_raw_parts(panel_adr, (OUTPUTS * CHAIN_LENGTH) as usize) };
         unsafe { panel_reg[chain_offset].write(|w| w.x().bits(x).y().bits(y)) };
     }
 
@@ -75,7 +93,7 @@ impl Hub75 {
         let chain_offset = (output * CHAIN_LENGTH + chain_num) as usize;
         let panel_adr = &self.hub75.panel0_0 as *const PANEL0_0;
         let panel_reg: &[PANEL0_0] =
-            unsafe { core::slice::from_raw_parts(panel_adr, (8 * CHAIN_LENGTH) as usize) };
+            unsafe { core::slice::from_raw_parts(panel_adr, (OUTPUTS * CHAIN_LENGTH) as usize) };
         let data = panel_reg[chain_offset].read();
         (data.x().bits(), data.y().bits())
     }

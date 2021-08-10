@@ -151,7 +151,13 @@ fn reboot(_menu: &Menu<Context>, _item: &Item<Context>, _args: &[&str], _context
 fn out_test(_menu: &Menu<Context>, _item: &Item<Context>, _args: &[&str], context: &mut Context) {
     let hub75 = &mut context.hub75;
     let (width, length) = hub75.get_img_param();
-    let img_data = crate::img::write_image(width, length, hub75.read_img_data()).unwrap();
+    let img_data = crate::img::write_image(
+        width,
+        length,
+        hub75.get_panel_params(),
+        hub75.read_img_data(),
+    )
+    .unwrap();
     let mut size = 0;
     for (byte_count, data) in img_data.enumerate() {
         if crate::img::IMG_FILE[byte_count] != data {
@@ -181,7 +187,7 @@ fn default_image(
     let hub75 = &mut context.hub75;
     let image = img::load_default_image();
     hub75.set_img_param(image.0, image.1);
-    hub75.write_img_data(0, image.2);
+    hub75.write_img_data(0, image.3);
     hub75.on();
 }
 
@@ -195,7 +201,8 @@ fn load_spi_image(
     let hub75 = &mut context.hub75;
     let image = img::load_image(context.flash.read_image()).unwrap();
     hub75.set_img_param(image.0, image.1);
-    hub75.write_img_data(0, image.2);
+    hub75.set_panel_params(image.2);
+    hub75.write_img_data(0, image.3);
     hub75.on();
 }
 
@@ -208,7 +215,13 @@ fn save_spi_image(
     use crate::img;
     let hub75 = &mut context.hub75;
     let (width, length) = hub75.get_img_param();
-    let img_data = img::write_image(width, length, hub75.read_img_data()).unwrap();
+    let img_data = img::write_image(
+        width,
+        length,
+        hub75.get_panel_params(),
+        hub75.read_img_data(),
+    )
+    .unwrap();
     context.flash.write_image(img_data);
 }
 

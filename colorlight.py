@@ -213,10 +213,11 @@ class BaseSoC(SoCCore):
         self.submodules.ethphy = LiteEthPHYRGMII(
             clock_pads=self.platform.request("eth_clocks", 0),
             pads=self.platform.request("eth", 0),
-            tx_delay   = 0e-9,
+            tx_delay=0e-9,
         )
-        self.add_csr("ethphy")
-        self.add_ethernet(phy=self.ethphy, nrxslots=1, ntxslots=1)
+
+        self.add_ethernet(phy=self.ethphy)
+        # self.add_ethip(self.ethphy)
         # self.add_etherbone(phy=self.ethphy)
 
         ## Reduce bios size

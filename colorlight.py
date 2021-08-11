@@ -108,23 +108,15 @@ class _CRG(Module):
             )  # Idealy 90° but needs to be increased.
 
         # SDRAM clock
-        sdram_clk = ClockSignal(
-            "sys2x_ps" if sdram_rate == "1:2" else "sys_ps")
-        self.specials += DDROutput(1, 0,
-                                   platform.request("sdram_clock"), sdram_clk)
+        sdram_clk = ClockSignal("sys2x_ps" if sdram_rate == "1:2" else "sys_ps")
+        self.specials += DDROutput(1, 0, platform.request("sdram_clock"), sdram_clk)
 
 
 # BaseSoC ------------------------------------------------------------------------------------------
 
 
 class BaseSoC(SoCCore):
-    def __init__(
-        self,
-        revision,
-        sys_clk_freq=50e6,
-        sdram_rate="1:1",
-        **kwargs
-    ):
+    def __init__(self, revision, sys_clk_freq=50e6, sdram_rate="1:1", **kwargs):
         platform = colorlight_5a_75b.Platform(revision=revision)
         sys_clk_freq = int(sys_clk_freq)
         # SoCCore ----------------------------------------------------------------------------------
@@ -146,26 +138,28 @@ class BaseSoC(SoCCore):
         )
         # Spi Flash TODO Only for v6.1, replace with W25Q32JV for later
         flash = GD25Q16(Codes.READ_1_1_1)
-        self.submodules.spiflash_phy    = LiteSPIPHY(
-            pads    = platform.request("spiflash"),
-            flash   = flash,
-            device  = platform.device)
-        self.submodules.spiflash_mmap   = LiteSPI(
-            phy             = self.spiflash_phy,
-            clk_freq        = sys_clk_freq,
-            mmap_endianness = self.cpu.endianness)
+        self.submodules.spiflash_phy = LiteSPIPHY(
+            pads=platform.request("spiflash"), flash=flash, device=platform.device
+        )
+        self.submodules.spiflash_mmap = LiteSPI(
+            phy=self.spiflash_phy,
+            clk_freq=sys_clk_freq,
+            mmap_endianness=self.cpu.endianness,
+        )
         self.add_csr("spiflash_mmap")
         self.add_csr("spiflash_phy")
         spiflash_region = SoCRegion(
-            origin  = self.mem_map.get("spiflash", None),
-            size    = flash.total_size,
-            cached  = False)
+            origin=self.mem_map.get("spiflash", None),
+            size=flash.total_size,
+            cached=False,
+        )
         self.bus.add_slave(
-            name    = "spiflash",
-            slave   = self.spiflash_mmap.bus,
-            region  = spiflash_region)
+            name="spiflash", slave=self.spiflash_mmap.bus, region=spiflash_region
+        )
 
-        self.add_constant("FLASH_BOOT_ADDRESS", self.bus.regions["spiflash"].origin + 0x100000)
+        self.add_constant(
+            "FLASH_BOOT_ADDRESS", self.bus.regions["spiflash"].origin + 0x100000
+        )
         self.add_constant("SPIFLASH_PAGE_SIZE", flash.page_size)
 
         # Internal Litex spi support, supports flashing & stuff via bios
@@ -177,7 +171,6 @@ class BaseSoC(SoCCore):
         # spiflash.add_clk_primitive(self.platform.device)
         # spiflash_region = SoCRegion(origin=0x80000000, size=2 * 1024 * 1024)
         # self.bus.add_slave(name="spiflash", slave=spiflash.bus, region=spiflash_region)
-
 
         # CRG --------------------------------------------------------------------------------------
         with_rst = False
@@ -233,8 +226,7 @@ class BaseSoC(SoCCore):
 
 
 def main():
-    parser = argparse.ArgumentParser(
-        description="LiteX SoC on Colorlight 5A-75X")
+    parser = argparse.ArgumentParser(description="LiteX SoC on Colorlight 5A-75X")
     builder_args(parser)
     # soc_core_args(parser)
     trellis_args(parser)
@@ -247,34 +239,45 @@ def main():
         type=str,
         help="Board revision 7.0 (default) or 6.1",
     )
-    parser.add_argument("--ip-address",  default="192.168.1.20",
-                        help="Ethernet IP address of the board (default: 192.168.1.20).")
-    parser.add_argument("--mac-address", default="0x726b895bc2e2",
-                        help="Ethernet MAC address of the board (defaullt: 0x726b895bc2e2).")
+    parser.add_argument(
+        "--ip-address",
+        default="192.168.1.20",
+        help="Ethernet IP address of the board (default: 192.168.1.20).",
+    )
+    parser.add_argument(
+        "--mac-address",
+        default="0x726b895bc2e2",
+        help="Ethernet MAC address of the board (defaullt: 0x726b895bc2e2).",
+    )
     parser.add_argument(
         # TODO raise it to 60e6 or whatever fits for ethernet
-        "--sys-clk-freq", default=50e6, help="System clock frequency (default: 50MHz)"
+        "--sys-clk-freq",
+        default=50e6,
+        help="System clock frequency (default: 50MHz)",
     )
     args = parser.parse_args()
 
     soc = BaseSoC(
-        revision=args.revision,
-        sys_clk_freq=args.sys_clk_freq,
-        **soc_core_argdict(args)
+        revision=args.revision, sys_clk_freq=args.sys_clk_freq, **soc_core_argdict(args)
     )
     builder_options = builder_argdict(args)
     builder_options["csr_svd"] = "sw_rust/litex-pac/colorlight.svd"
     # builder_options["memory_x"] = "sw_rust/litex-pac/memory.x"
-    builder = Builder(soc, **builder_options, bios_options = ["TERM_MINI"])
+    builder = Builder(soc, **builder_options, bios_options=["TERM_MINI"])
     builder.build(**trellis_argdict(args), run=args.build)
 
     # If requested load the resulting bitstream onto the 5A-75B
     if args.flash or args.load:
         prog = ECP5Programmer()
         if args.load:
-            prog.load_bitstream(os.path.join(builder.gateware_dir, soc.build_name + ".bit"))
+            prog.load_bitstream(
+                os.path.join(builder.gateware_dir, soc.build_name + ".bit")
+            )
         if args.flash:
-            prog.flash(0x00000000, os.path.join(builder.gateware_dir, soc.build_name + ".bit"))
+            prog.flash(
+                0x00000000, os.path.join(builder.gateware_dir, soc.build_name + ".bit")
+            )
+
 
 if __name__ == "__main__":
     main()

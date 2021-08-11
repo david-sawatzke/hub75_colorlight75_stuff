@@ -192,7 +192,8 @@ class BaseSoC(SoCCore):
             origin=self.mem_map["main_ram"],
             size=sdram_size,
             l2_cache_size=128,
-            l2_cache_reverse=False
+            l2_cache_reverse=False,
+            l2_cache_full_memory_we=False,
         )
 
         # Add hub75 connectors

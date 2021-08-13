@@ -1,5 +1,6 @@
 #![no_std]
 
+pub mod ethernet;
 pub mod hal;
 pub mod hub75;
 pub mod img;

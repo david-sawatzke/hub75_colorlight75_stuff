@@ -3,7 +3,7 @@
 <device schemaVersion="1.1" xmlns:xs="http://www.w3.org/2001/XMLSchema-instance" xs:noNamespaceSchemaLocation="CMSIS-SVD.xsd" >
     <vendor>litex</vendor>
     <name>SOC</name>
-    <description><![CDATA[Litex SoC 2021-07-15 18:24:26]]></description>
+    <description><![CDATA[Litex SoC 2021-08-13 16:42:24]]></description>
 
     <addressUnitBits>8</addressUnitBits>
     <width>32</width>
@@ -227,8 +227,282 @@ to the Wishbone/CSR bus are working correctly. The initial reset value of
             </addressBlock>
         </peripheral>
         <peripheral>
-            <name>ETHPHY</name>
+            <name>ETHMAC</name>
             <baseAddress>0xF0001800</baseAddress>
+            <groupName>ETHMAC</groupName>
+            <registers>
+                <register>
+                    <name>SRAM_WRITER_SLOT</name>
+                    <addressOffset>0x0000</addressOffset>
+                    <resetValue>0x00</resetValue>
+                    <size>32</size>
+                    <fields>
+                        <field>
+                            <name>sram_writer_slot</name>
+                            <msb>0</msb>
+                            <bitRange>[0:0]</bitRange>
+                            <lsb>0</lsb>
+                        </field>
+                    </fields>
+                </register>
+                <register>
+                    <name>SRAM_WRITER_LENGTH</name>
+                    <addressOffset>0x0004</addressOffset>
+                    <resetValue>0x00</resetValue>
+                    <size>32</size>
+                    <fields>
+                        <field>
+                            <name>sram_writer_length</name>
+                            <msb>31</msb>
+                            <bitRange>[31:0]</bitRange>
+                            <lsb>0</lsb>
+                        </field>
+                    </fields>
+                </register>
+                <register>
+                    <name>SRAM_WRITER_ERRORS</name>
+                    <addressOffset>0x0008</addressOffset>
+                    <resetValue>0x00</resetValue>
+                    <size>32</size>
+                    <fields>
+                        <field>
+                            <name>sram_writer_errors</name>
+                            <msb>31</msb>
+                            <bitRange>[31:0]</bitRange>
+                            <lsb>0</lsb>
+                        </field>
+                    </fields>
+                </register>
+                <register>
+                    <name>SRAM_WRITER_EV_STATUS</name>
+                    <description><![CDATA[This register contains the current raw level of the available event trigger.
+Writes to this register have no effect.]]></description>
+                    <addressOffset>0x000c</addressOffset>
+                    <resetValue>0x00</resetValue>
+                    <size>32</size>
+                    <fields>
+                        <field>
+                            <name>available</name>
+                            <msb>0</msb>
+                            <bitRange>[0:0]</bitRange>
+                            <lsb>0</lsb>
+                            <description><![CDATA[Level of the ``available`` event]]></description>
+                        </field>
+                    </fields>
+                </register>
+                <register>
+                    <name>SRAM_WRITER_EV_PENDING</name>
+                    <description><![CDATA[When a  available event occurs, the corresponding bit will be set in this
+register.  To clear the Event, set the corresponding bit in this register.]]></description>
+                    <addressOffset>0x0010</addressOffset>
+                    <resetValue>0x00</resetValue>
+                    <size>32</size>
+                    <fields>
+                        <field>
+                            <name>available</name>
+                            <msb>0</msb>
+                            <bitRange>[0:0]</bitRange>
+                            <lsb>0</lsb>
+                            <description><![CDATA[`1` if a `available` event occurred. This Event is **level triggered** when the
+signal is **high**.]]></description>
+                        </field>
+                    </fields>
+                </register>
+                <register>
+                    <name>SRAM_WRITER_EV_ENABLE</name>
+                    <description><![CDATA[This register enables the corresponding available events.  Write a ``0`` to this
+register to disable individual events.]]></description>
+                    <addressOffset>0x0014</addressOffset>
+                    <resetValue>0x00</resetValue>
+                    <size>32</size>
+                    <fields>
+                        <field>
+                            <name>available</name>
+                            <msb>0</msb>
+                            <bitRange>[0:0]</bitRange>
+                            <lsb>0</lsb>
+                            <description><![CDATA[Write a ``1`` to enable the ``available`` Event]]></description>
+                        </field>
+                    </fields>
+                </register>
+                <register>
+                    <name>SRAM_READER_START</name>
+                    <addressOffset>0x0018</addressOffset>
+                    <resetValue>0x00</resetValue>
+                    <size>32</size>
+                    <fields>
+                        <field>
+                            <name>sram_reader_start</name>
+                            <msb>0</msb>
+                            <bitRange>[0:0]</bitRange>
+                            <lsb>0</lsb>
+                        </field>
+                    </fields>
+                </register>
+                <register>
+                    <name>SRAM_READER_READY</name>
+                    <addressOffset>0x001c</addressOffset>
+                    <resetValue>0x00</resetValue>
+                    <size>32</size>
+                    <fields>
+                        <field>
+                            <name>sram_reader_ready</name>
+                            <msb>0</msb>
+                            <bitRange>[0:0]</bitRange>
+                            <lsb>0</lsb>
+                        </field>
+                    </fields>
+                </register>
+                <register>
+                    <name>SRAM_READER_LEVEL</name>
+                    <addressOffset>0x0020</addressOffset>
+                    <resetValue>0x00</resetValue>
+                    <size>32</size>
+                    <fields>
+                        <field>
+                            <name>sram_reader_level</name>
+                            <msb>1</msb>
+                            <bitRange>[1:0]</bitRange>
+                            <lsb>0</lsb>
+                        </field>
+                    </fields>
+                </register>
+                <register>
+                    <name>SRAM_READER_SLOT</name>
+                    <addressOffset>0x0024</addressOffset>
+                    <resetValue>0x00</resetValue>
+                    <size>32</size>
+                    <fields>
+                        <field>
+                            <name>sram_reader_slot</name>
+                            <msb>0</msb>
+                            <bitRange>[0:0]</bitRange>
+                            <lsb>0</lsb>
+                        </field>
+                    </fields>
+                </register>
+                <register>
+                    <name>SRAM_READER_LENGTH</name>
+                    <addressOffset>0x0028</addressOffset>
+                    <resetValue>0x00</resetValue>
+                    <size>32</size>
+                    <fields>
+                        <field>
+                            <name>sram_reader_length</name>
+                            <msb>10</msb>
+                            <bitRange>[10:0]</bitRange>
+                            <lsb>0</lsb>
+                        </field>
+                    </fields>
+                </register>
+                <register>
+                    <name>SRAM_READER_EV_STATUS</name>
+                    <description><![CDATA[This register contains the current raw level of the event0 event trigger.
+Writes to this register have no effect.]]></description>
+                    <addressOffset>0x002c</addressOffset>
+                    <resetValue>0x00</resetValue>
+                    <size>32</size>
+                    <fields>
+                        <field>
+                            <name>event0</name>
+                            <msb>0</msb>
+                            <bitRange>[0:0]</bitRange>
+                            <lsb>0</lsb>
+                            <description><![CDATA[Level of the ``event0`` event]]></description>
+                        </field>
+                    </fields>
+                </register>
+                <register>
+                    <name>SRAM_READER_EV_PENDING</name>
+                    <description><![CDATA[When a  event0 event occurs, the corresponding bit will be set in this register.
+To clear the Event, set the corresponding bit in this register.]]></description>
+                    <addressOffset>0x0030</addressOffset>
+                    <resetValue>0x00</resetValue>
+                    <size>32</size>
+                    <fields>
+                        <field>
+                            <name>event0</name>
+                            <msb>0</msb>
+                            <bitRange>[0:0]</bitRange>
+                            <lsb>0</lsb>
+                            <description><![CDATA[`1` if a this particular event occurred. This Event is triggered on a **rising**
+edge.]]></description>
+                        </field>
+                    </fields>
+                </register>
+                <register>
+                    <name>SRAM_READER_EV_ENABLE</name>
+                    <description><![CDATA[This register enables the corresponding event0 events.  Write a ``0`` to this
+register to disable individual events.]]></description>
+                    <addressOffset>0x0034</addressOffset>
+                    <resetValue>0x00</resetValue>
+                    <size>32</size>
+                    <fields>
+                        <field>
+                            <name>event0</name>
+                            <msb>0</msb>
+                            <bitRange>[0:0]</bitRange>
+                            <lsb>0</lsb>
+                            <description><![CDATA[Write a ``1`` to enable the ``event0`` Event]]></description>
+                        </field>
+                    </fields>
+                </register>
+                <register>
+                    <name>PREAMBLE_CRC</name>
+                    <addressOffset>0x0038</addressOffset>
+                    <resetValue>0x01</resetValue>
+                    <size>32</size>
+                    <fields>
+                        <field>
+                            <name>preamble_crc</name>
+                            <msb>0</msb>
+                            <bitRange>[0:0]</bitRange>
+                            <lsb>0</lsb>
+                        </field>
+                    </fields>
+                </register>
+                <register>
+                    <name>PREAMBLE_ERRORS</name>
+                    <addressOffset>0x003c</addressOffset>
+                    <resetValue>0x00</resetValue>
+                    <size>32</size>
+                    <fields>
+                        <field>
+                            <name>preamble_errors</name>
+                            <msb>31</msb>
+                            <bitRange>[31:0]</bitRange>
+                            <lsb>0</lsb>
+                        </field>
+                    </fields>
+                </register>
+                <register>
+                    <name>CRC_ERRORS</name>
+                    <addressOffset>0x0040</addressOffset>
+                    <resetValue>0x00</resetValue>
+                    <size>32</size>
+                    <fields>
+                        <field>
+                            <name>crc_errors</name>
+                            <msb>31</msb>
+                            <bitRange>[31:0]</bitRange>
+                            <lsb>0</lsb>
+                        </field>
+                    </fields>
+                </register>
+            </registers>
+            <addressBlock>
+                <offset>0</offset>
+                <size>0x44</size>
+                <usage>registers</usage>
+            </addressBlock>
+            <interrupt>
+                <name>ethmac</name>
+                <value>2</value>
+            </interrupt>
+        </peripheral>
+        <peripheral>
+            <name>ETHPHY</name>
+            <baseAddress>0xF0002000</baseAddress>
             <groupName>ETHPHY</groupName>
             <registers>
                 <register>
@@ -327,7 +601,7 @@ to the Wishbone/CSR bus are working correctly. The initial reset value of
         </peripheral>
         <peripheral>
             <name>HUB75_PALETTE</name>
-            <baseAddress>0xF0002000</baseAddress>
+            <baseAddress>0xF0002800</baseAddress>
             <groupName>HUB75_PALETTE</groupName>
             <registers>
                 <register>
@@ -354,7 +628,7 @@ to the Wishbone/CSR bus are working correctly. The initial reset value of
         </peripheral>
         <peripheral>
             <name>HUB75</name>
-            <baseAddress>0xF0002800</baseAddress>
+            <baseAddress>0xF0003000</baseAddress>
             <groupName>HUB75</groupName>
             <registers>
                 <register>
@@ -1099,7 +1373,7 @@ to the Wishbone/CSR bus are working correctly. The initial reset value of
         </peripheral>
         <peripheral>
             <name>IDENTIFIER_MEM</name>
-            <baseAddress>0xF0003000</baseAddress>
+            <baseAddress>0xF0003800</baseAddress>
             <groupName>IDENTIFIER_MEM</groupName>
             <registers>
                 <register>
@@ -1126,7 +1400,7 @@ to the Wishbone/CSR bus are working correctly. The initial reset value of
         </peripheral>
         <peripheral>
             <name>SDRAM</name>
-            <baseAddress>0xF0003800</baseAddress>
+            <baseAddress>0xF0004000</baseAddress>
             <groupName>SDRAM</groupName>
             <registers>
                 <register>
@@ -1258,7 +1532,7 @@ to the Wishbone/CSR bus are working correctly. The initial reset value of
         </peripheral>
         <peripheral>
             <name>TIMER0</name>
-            <baseAddress>0xF0004000</baseAddress>
+            <baseAddress>0xF0004800</baseAddress>
             <groupName>TIMER0</groupName>
             <registers>
                 <register>
@@ -1404,7 +1678,7 @@ register to disable individual events.]]></description>
         </peripheral>
         <peripheral>
             <name>UART</name>
-            <baseAddress>0xF0004800</baseAddress>
+            <baseAddress>0xF0005000</baseAddress>
             <groupName>UART</groupName>
             <registers>
                 <register>
@@ -1564,6 +1838,90 @@ register to disable individual events.]]></description>
                 <value>0</value>
             </interrupt>
         </peripheral>
+            <peripheral>
+            <name>ETHMEM</name>
+            <baseAddress>0x80200000</baseAddress>
+            <groupName>ETHMEM</groupName>
+            <registers>
+                <register>
+                    <name>RX_BUFFER_0[%s]</name>
+                    <dim>2048</dim>
+                    <dimIncrement>1</dimIncrement>
+                    <description><![CDATA[rx buffers]]></description>
+                    <addressOffset>0x0000</addressOffset>
+                    <resetValue>0x00</resetValue>
+                    <size>8</size>
+                    <access>read-only</access>
+                    <fields>
+                        <field>
+                            <name>rx_buffer_0</name>
+                            <msb>7</msb>
+                            <bitRange>[7:0]</bitRange>
+                            <lsb>0</lsb>
+                        </field>
+                    </fields>
+                </register>
+                <register>
+                    <name>RX_BUFFER_1[%s]</name>
+                    <dim>2048</dim>
+                    <dimIncrement>1</dimIncrement>
+                    <description><![CDATA[rx buffers]]></description>
+                    <addressOffset>0x0800</addressOffset>
+                    <resetValue>0x00</resetValue>
+                    <size>8</size>
+                    <access>read-only</access>
+                    <fields>
+                        <field>
+                            <name>rx_buffer_1</name>
+                            <msb>7</msb>
+                            <bitRange>[7:0]</bitRange>
+                            <lsb>0</lsb>
+                        </field>
+                    </fields>
+                </register>
+                <register>
+                    <name>TX_BUFFER_0[%s]</name>
+                    <dim>2048</dim>
+                    <dimIncrement>1</dimIncrement>
+                    <description><![CDATA[tx buffers]]></description>
+                    <addressOffset>0x1000</addressOffset>
+                    <resetValue>0x00</resetValue>
+                    <size>8</size>
+                    <access>read-write</access>
+                    <fields>
+                        <field>
+                            <name>tx_buffer_0</name>
+                            <msb>7</msb>
+                            <bitRange>[7:0]</bitRange>
+                            <lsb>0</lsb>
+                        </field>
+                    </fields>
+                </register>
+                <register>
+                    <name>TX_BUFFER_1[%s]</name>
+                    <dim>2048</dim>
+                    <dimIncrement>1</dimIncrement>
+                    <description><![CDATA[tx buffers]]></description>
+                    <addressOffset>0x1800</addressOffset>
+                    <resetValue>0x00</resetValue>
+                    <size>8</size>
+                    <access>read-write</access>
+                    <fields>
+                        <field>
+                            <name>tx_buffer_1</name>
+                            <msb>7</msb>
+                            <bitRange>[7:0]</bitRange>
+                            <lsb>0</lsb>
+                        </field>
+                    </fields>
+                </register>
+            </registers>
+            <addressBlock>
+                <offset>0</offset>
+                <size>0x4000</size>
+                <usage>buffer</usage>
+            </addressBlock>
+        </peripheral>
     </peripherals>
     <vendorExtensions>
         <memoryRegions>
@@ -1588,6 +1946,11 @@ register to disable individual events.]]></description>
                 <size>0x00400000</size>
             </memoryRegion>
             <memoryRegion>
+                <name>ETHMAC</name>
+                <baseAddress>0x80200000</baseAddress>
+                <size>0x00002000</size>
+            </memoryRegion>
+            <memoryRegion>
                 <name>CSR</name>
                 <baseAddress>0xF0000000</baseAddress>
                 <size>0x00010000</size>
@@ -1598,8 +1961,8 @@ register to disable individual events.]]></description>
             <constant name="CONFIG_CPU_HAS_INTERRUPT" value="None" />
             <constant name="CONFIG_CPU_RESET_ADDR" value="0" />
             <constant name="CONFIG_CPU_TYPE_VEXRISCV" value="None" />
-            <constant name="CONFIG_CPU_VARIANT_IMAC" value="None" />
-            <constant name="CONFIG_CPU_HUMAN_NAME" value="VexRiscv_IMAC" />
+            <constant name="CONFIG_CPU_VARIANT_MINIMAL" value="None" />
+            <constant name="CONFIG_CPU_HUMAN_NAME" value="VexRiscv_Min" />
             <constant name="CONFIG_CPU_NOP" value="nop" />
             <constant name="CONFIG_WITH_BUILD_TIME" value="None" />
             <constant name="FLASH_BOOT_ADDRESS" value="2148532224" />
@@ -1611,6 +1974,10 @@ register to disable individual events.]]></description>
             <constant name="CONFIG_BUS_STANDARD" value="WISHBONE" />
             <constant name="CONFIG_BUS_DATA_WIDTH" value="32" />
             <constant name="CONFIG_BUS_ADDRESS_WIDTH" value="32" />
+            <constant name="ETHMAC_RX_SLOTS" value="2" />
+            <constant name="ETHMAC_TX_SLOTS" value="2" />
+            <constant name="ETHMAC_SLOT_SIZE" value="2048" />
+            <constant name="ETHMAC_INTERRUPT" value="2" />
             <constant name="TIMER0_INTERRUPT" value="1" />
             <constant name="UART_INTERRUPT" value="0" />
         </constants>

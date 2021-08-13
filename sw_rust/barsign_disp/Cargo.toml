@@ -14,6 +14,7 @@ spi-memory = "0.2.0"
 nb = "1"
 riscv = "0.6"
 menu = "0.3"
+smoltcp = { version = "0.7", default-features = false, features = ["ethernet", "proto-ipv4", "socket-icmp", "socket-udp","socket-tcp"] }
 
 
 [profile.release]

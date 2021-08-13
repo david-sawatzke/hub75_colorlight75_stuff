@@ -30,6 +30,7 @@ from litex.soc.integration.soc_core import *
 from litex.soc.integration.soc import SoCRegion
 from litex.soc.integration.builder import *
 from litex.soc.interconnect.wishbone import SRAM, Interface
+from litex.soc.integration import export
 
 from litedram.modules import M12L16161A
 from litedram.phy import GENSDRPHY, HalfRateGENSDRPHY
@@ -263,10 +264,18 @@ def main():
         revision=args.revision, sys_clk_freq=args.sys_clk_freq, **soc_core_argdict(args)
     )
     builder_options = builder_argdict(args)
-    builder_options["csr_svd"] = "sw_rust/litex-pac/colorlight.svd"
+    # builder_options["csr_svd"] = "sw_rust/litex-pac/colorlight.svd"
     # builder_options["memory_x"] = "sw_rust/litex-pac/memory.x"
     builder = Builder(soc, **builder_options, bios_options=["TERM_MINI"])
     builder.build(**trellis_argdict(args), run=args.build)
+
+    # Generate svd
+    csr_svd_contents = export.get_csr_svd(soc)
+    # PATCH IT
+    ethmac_adr = soc.mem_regions["ethmac"].origin
+    csr_svd_contents = modify_svd(csr_svd_contents, ethmac_adr)
+    # Write it out!
+    write_to_file("sw_rust/litex-pac/colorlight.svd", csr_svd_contents)
 
     # If requested load the resulting bitstream onto the 5A-75B
     if args.flash or args.load:
@@ -279,6 +288,96 @@ def main():
             prog.flash(
                 0x00000000, os.path.join(builder.gateware_dir, soc.build_name + ".bit")
             )
+
+def modify_svd(svd_contents, eth_addr):
+    # Add Ethernet buffer peripheral to svd
+    registers = """        <peripheral>
+            <name>ETHMEM</name>
+""" + "            <baseAddress>" + hex(eth_addr) + """</baseAddress>
+            <groupName>ETHMEM</groupName>
+            <registers>
+                <register>
+                    <name>RX_BUFFER_0[%s]</name>
+                    <dim>2048</dim>
+                    <dimIncrement>1</dimIncrement>
+                    <description><![CDATA[rx buffers]]></description>
+                    <addressOffset>0x0000</addressOffset>
+                    <resetValue>0x00</resetValue>
+                    <size>8</size>
+                    <access>read-only</access>
+                    <fields>
+                        <field>
+                            <name>rx_buffer_0</name>
+                            <msb>7</msb>
+                            <bitRange>[7:0]</bitRange>
+                            <lsb>0</lsb>
+                        </field>
+                    </fields>
+                </register>
+                <register>
+                    <name>RX_BUFFER_1[%s]</name>
+                    <dim>2048</dim>
+                    <dimIncrement>1</dimIncrement>
+                    <description><![CDATA[rx buffers]]></description>
+                    <addressOffset>0x0800</addressOffset>
+                    <resetValue>0x00</resetValue>
+                    <size>8</size>
+                    <access>read-only</access>
+                    <fields>
+                        <field>
+                            <name>rx_buffer_1</name>
+                            <msb>7</msb>
+                            <bitRange>[7:0]</bitRange>
+                            <lsb>0</lsb>
+                        </field>
+                    </fields>
+                </register>
+                <register>
+                    <name>TX_BUFFER_0[%s]</name>
+                    <dim>2048</dim>
+                    <dimIncrement>1</dimIncrement>
+                    <description><![CDATA[tx buffers]]></description>
+                    <addressOffset>0x1000</addressOffset>
+                    <resetValue>0x00</resetValue>
+                    <size>8</size>
+                    <access>read-write</access>
+                    <fields>
+                        <field>
+                            <name>tx_buffer_0</name>
+                            <msb>7</msb>
+                            <bitRange>[7:0]</bitRange>
+                            <lsb>0</lsb>
+                        </field>
+                    </fields>
+                </register>
+                <register>
+                    <name>TX_BUFFER_1[%s]</name>
+                    <dim>2048</dim>
+                    <dimIncrement>1</dimIncrement>
+                    <description><![CDATA[tx buffers]]></description>
+                    <addressOffset>0x1800</addressOffset>
+                    <resetValue>0x00</resetValue>
+                    <size>8</size>
+                    <access>read-write</access>
+                    <fields>
+                        <field>
+                            <name>tx_buffer_1</name>
+                            <msb>7</msb>
+                            <bitRange>[7:0]</bitRange>
+                            <lsb>0</lsb>
+                        </field>
+                    </fields>
+                </register>
+            </registers>
+            <addressBlock>
+                <offset>0</offset>
+                <size>0x4000</size>
+                <usage>buffer</usage>
+            </addressBlock>
+        </peripheral>
+    </peripherals>"""
+
+    return svd_contents.replace("</peripherals>", registers)
 
 
 if __name__ == "__main__":

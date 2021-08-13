@@ -22,7 +22,7 @@ from litex.build.io import DDROutput
 from litex_boards.platforms import colorlight_5a_75b
 
 from litex.build.lattice.trellis import trellis_args, trellis_argdict
-from litex.build.generic_programmer import GenericProgrammer
+from litex.build.lattice.programmer import EcpprogProgrammer
 
 from litex.soc.cores.clock import *
 from litex.soc.cores import uart
@@ -48,15 +48,6 @@ import hub75
 
 import helper
 
-
-class ECP5Programmer(GenericProgrammer):
-    needs_bitreverse = False
-
-    def flash(self, address, bitstream_file):
-        subprocess.call(["ecpprog", "-o", str(address), bitstream_file])
-
-    def load_bitstream(self, bitstream_file):
-        subprocess.call(["ecpprog", "-S", bitstream_file])
 
 # CRG ----------------------------------------------------------------------------------------------
 
@@ -279,7 +270,7 @@ def main():
 
     # If requested load the resulting bitstream onto the 5A-75B
     if args.flash or args.load:
-        prog = ECP5Programmer()
+        prog = EcpprogProgrammer()
         if args.load:
             prog.load_bitstream(
                 os.path.join(builder.gateware_dir, soc.build_name + ".bit")

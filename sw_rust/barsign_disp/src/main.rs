@@ -55,19 +55,47 @@ fn main() -> ! {
         .ip_addrs(&mut ip_addrs[..])
         .finalize();
 
-    let mut socket_set_entries: [_; 0] = Default::default();
-    let mut socket_set = SocketSet::new(&mut socket_set_entries[..]);
+    let tcp_server_socket = {
+        static mut TCP_SERVER_RX_DATA: [u8; 8192] = [0; 8192];
+        static mut TCP_SERVER_TX_DATA: [u8; 8192] = [0; 8192];
+        let tcp_rx_buffer = TcpSocketBuffer::new(unsafe { &mut TCP_SERVER_RX_DATA[..] });
+        let tcp_tx_buffer = TcpSocketBuffer::new(unsafe { &mut TCP_SERVER_TX_DATA[..] });
+        TcpSocket::new(tcp_rx_buffer, tcp_tx_buffer)
+    };
+
+    let mut sockets_entries: [_; 1] = Default::default();
+    let mut sockets = SocketSet::new(&mut sockets_entries[..]);
+    let tcp_server_handle = sockets.add(tcp_server_socket);
 
     let mut time = Instant::from_millis(0);
     loop {
-        match iface.poll(&mut socket_set, time) {
+        match iface.poll(&mut sockets, time) {
             Ok(_) => {}
             Err(_) => {}
         }
+
+        // tcp:6970: echo
+        {
+            let mut socket = sockets.get::<TcpSocket>(tcp_server_handle);
+            if !socket.is_open() {
+                socket.listen(6970).unwrap()
+            }
+
+            if socket.may_recv() {
+                while socket.can_recv() {
+                    let data = socket.recv(|buffer| (1, buffer[0])).unwrap();
+                    socket.send_slice(core::slice::from_ref(&data)).unwrap();
+                }
+            } else if socket.may_send() {
+                socket.close();
+            }
+        }
+
         if let Ok(data) = r.context.serial.read() {
             r.input_byte(if data == b'\n' { b'\r' } else { data });
         }
-        match iface.poll_delay(&socket_set, time) {
+
+        match iface.poll_delay(&sockets, time) {
             Some(Duration { millis: 0 }) => {}
             Some(delay_duration) => {
                 delay.delay_ms(delay_duration.total_millis() as u32);

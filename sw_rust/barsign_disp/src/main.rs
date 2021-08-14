@@ -56,8 +56,8 @@ fn main() -> ! {
         .finalize();
 
     let tcp_server_socket = {
-        static mut TCP_SERVER_RX_DATA: [u8; 8192] = [0; 8192];
-        static mut TCP_SERVER_TX_DATA: [u8; 8192] = [0; 8192];
+        static mut TCP_SERVER_RX_DATA: [u8; 256] = [0; 256];
+        static mut TCP_SERVER_TX_DATA: [u8; 256] = [0; 256];
         let tcp_rx_buffer = TcpSocketBuffer::new(unsafe { &mut TCP_SERVER_RX_DATA[..] });
         let tcp_tx_buffer = TcpSocketBuffer::new(unsafe { &mut TCP_SERVER_TX_DATA[..] });
         TcpSocket::new(tcp_rx_buffer, tcp_tx_buffer)

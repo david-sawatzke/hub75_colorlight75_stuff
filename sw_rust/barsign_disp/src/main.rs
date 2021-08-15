@@ -1,6 +1,7 @@
 #![no_std]
 #![no_main]
 
+use core::fmt::Write as _;
 use panic_halt as _;
 
 use barsign_disp::*;
@@ -63,9 +64,23 @@ fn main() -> ! {
         TcpSocket::new(tcp_rx_buffer, tcp_tx_buffer)
     };
 
-    let mut sockets_entries: [_; 1] = Default::default();
+    let udp_server_socket = {
+        static mut UDP_SERVER_RX_DATA: [u8; 2048] = [0; 2048];
+        static mut UDP_SERVER_TX_DATA: [u8; 2048] = [0; 2048];
+        static mut UDP_SERVER_RX_METADATA: [UdpPacketMetadata; 32] = [UdpPacketMetadata::EMPTY; 32];
+        static mut UDP_SERVER_TX_METADATA: [UdpPacketMetadata; 32] = [UdpPacketMetadata::EMPTY; 32];
+        let udp_rx_buffer = unsafe {
+            UdpSocketBuffer::new(&mut UDP_SERVER_RX_METADATA[..], &mut UDP_SERVER_RX_DATA[..])
+        };
+        let udp_tx_buffer = unsafe {
+            UdpSocketBuffer::new(&mut UDP_SERVER_TX_METADATA[..], &mut UDP_SERVER_TX_DATA[..])
+        };
+        UdpSocket::new(udp_rx_buffer, udp_tx_buffer)
+    };
+    let mut sockets_entries: [_; 2] = Default::default();
     let mut sockets = SocketSet::new(&mut sockets_entries[..]);
     let tcp_server_handle = sockets.add(tcp_server_socket);
+    let udp_server_handle = sockets.add(udp_server_socket);
 
     let mut time = Instant::from_millis(0);
     loop {
@@ -90,18 +105,39 @@ fn main() -> ! {
                 socket.close();
             }
         }
+        // udp:6454: artnet
+        {
+            let mut socket = sockets.get::<UdpSocket>(udp_server_handle);
+            if !socket.is_open() {
+                socket.bind(6454).unwrap()
+            }
 
+            match socket.recv() {
+                Ok((data, _endpoint)) => {
+                    if let Ok((offset, data)) = artnet::packet2hub75(data) {
+                        r.context.hub75.write_img_data(offset, data);
+                        // writeln!(r.context.serial, "{}", offset);
+                    }
+                }
+                Err(_) => (),
+            };
+            // if let Some(endpoint) = client {
+            //     let data = b"Hello World!\r\n";
+            //     socket.send_slice(data, endpoint).unwrap();
+            // }
+        }
         if let Ok(data) = r.context.serial.read() {
             r.input_byte(if data == b'\n' { b'\r' } else { data });
         }
 
-        match iface.poll_delay(&sockets, time) {
-            Some(Duration { millis: 0 }) => {}
-            Some(delay_duration) => {
-                delay.delay_ms(delay_duration.total_millis() as u32);
-                time += delay_duration
-            }
-            None => time += Duration::from_millis(1),
-        }
+        // match iface.poll_delay(&sockets, time) {
+        //     Some(Duration { millis: 0 }) => {}
+        //     Some(delay_duration) => {
+        //         // delay.delay_ms(delay_duration.total_millis() as u32);
+        //         time += delay_duration
+        //     }
+        //     None => time += Duration::from_millis(1),
+        // }
+        time += Duration::from_millis(1);
     }
 }

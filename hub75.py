@@ -254,9 +254,9 @@ class RamToBufferReader(Module):
         gamma_data_valid = Signal()
         gamma_data = Signal().like(palette_data)
         self.sync += [
-            gamma_data.eq(palette_data),#Cat(gamma_lut[palette_data[:8]],
-                              #gamma_lut[palette_data[8:16]],
-                              #gamma_lut[palette_data[16:24]])),
+            gamma_data.eq(Cat(gamma_lut[palette_data[:8]],
+                              gamma_lut[palette_data[8:16]],
+                              gamma_lut[palette_data[16:24]])),
             gamma_data_valid.eq(palette_data_valid),
             gamma_data_done.eq(palette_data_done),
         ]

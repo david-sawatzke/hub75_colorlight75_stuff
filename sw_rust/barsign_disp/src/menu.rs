@@ -82,6 +82,31 @@ pub const ROOT_MENU: Menu<Context> = Menu {
         },
         &Item {
             item_type: ItemType::Callback {
+                function: get_image_param,
+                parameters: &[],
+            },
+            command: "get_image_param",
+            help: Some("Get configured width & length"),
+        },
+        &Item {
+            item_type: ItemType::Callback {
+                function: set_image_param,
+                parameters: &[
+                    Parameter::Mandatory {
+                        parameter_name: "width",
+                        help: None,
+                    },
+                    Parameter::Mandatory {
+                        parameter_name: "length",
+                        help: None,
+                    },
+                ],
+            },
+            command: "set_image_param",
+            help: Some("Set width & length"),
+        },
+        &Item {
+            item_type: ItemType::Callback {
                 function: get_panel_param,
                 parameters: &[
                     Parameter::Mandatory {
@@ -233,6 +258,36 @@ fn off(_menu: &Menu<Context>, _item: &Item<Context>, _args: &[&str], context: &m
     context.hub75.off();
 }
 
+fn get_image_param(
+    _menu: &Menu<Context>,
+    _item: &Item<Context>,
+    _args: &[&str],
+    context: &mut Context,
+) {
+    let (width, length) = context.hub75.get_img_param();
+    writeln!(context, r#"{{"width": {}, "length": {}}}"#, width, length).unwrap();
+}
+
+fn set_image_param(
+    _menu: &Menu<Context>,
+    item: &Item<Context>,
+    args: &[&str],
+    context: &mut Context,
+) {
+    let width: Result<u16, _> = argument_finder(item, args, "width")
+        .unwrap()
+        .unwrap()
+        .parse();
+    let length: Result<u32, _> = argument_finder(item, args, "length")
+        .unwrap()
+        .unwrap()
+        .parse();
+    if width.is_err() || length.is_err() {
+        writeln!(context, "Invalid number given").unwrap();
+        return;
+    }
+    context.hub75.set_img_param(width.unwrap(), length.unwrap());
+}
 fn get_panel_param(
     _menu: &Menu<Context>,
     item: &Item<Context>,

@@ -70,36 +70,26 @@ impl<'a> phy::RxToken for EthRxToken<'a> {
     where
         F: FnOnce(&mut [u8]) -> Result<R>,
     {
-        //#[link_section = ".main_ram"]
-        static mut RX_BUFFER: [u8; 2048] = [0; 2048];
-
         unsafe {
             if self.ethmac.sram_writer_ev_pending.read().bits() == 0 {
                 return Err(Error::Exhausted);
             }
             let slot = self.ethmac.sram_writer_slot.read().bits();
             let length = self.ethmac.sram_writer_length.read().bits();
-            match slot {
+            let result = match slot {
                 0 => {
-                    for (i, elem) in self.ethbuf.rx_buffer_0.iter().enumerate() {
-                        if i > length as usize {
-                            break;
-                        }
-                        RX_BUFFER[i] = elem.read().bits();
-                    }
+                    let buf = (&self.ethbuf.rx_buffer_0) as *const _ as *const u8 as *mut u8;
+                    let data = core::slice::from_raw_parts_mut(buf, length as usize);
+                    f(data)
                 }
                 1 => {
-                    for (i, elem) in self.ethbuf.rx_buffer_1.iter().enumerate() {
-                        if i > length as usize {
-                            break;
-                        }
-                        RX_BUFFER[i] = elem.read().bits();
-                    }
+                    let buf = (&self.ethbuf.rx_buffer_1) as *const _ as *const u8 as *mut u8;
+                    let data = core::slice::from_raw_parts_mut(buf, length as usize);
+                    f(data)
                 }
                 _ => return Err(Error::Exhausted),
             };
 
-            let result = f(&mut RX_BUFFER[..length as usize]);
             self.ethmac.sram_writer_ev_pending.write(|w| w.bits(1));
             result
         }

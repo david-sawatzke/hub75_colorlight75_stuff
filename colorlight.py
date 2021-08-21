@@ -183,7 +183,7 @@ class BaseSoC(SoCCore):
             module=sdram_cls(sys_clk_freq, sdram_rate),
             origin=self.mem_map["main_ram"],
             size=sdram_size,
-            l2_cache_size=128,
+            l2_cache_size=8192,
             l2_cache_reverse=False,
             l2_cache_full_memory_we=False,
         )

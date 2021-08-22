@@ -193,11 +193,6 @@ class BaseSoC(SoCCore):
         pins_common = platform.request("hub75_common")
         pins = [platform.request("hub75_data", i) for i in range(8)]
 
-        # TODO Workaround, for some reason T3 doesn't "exist" on CABGA381 even
-        #      though it exists
-        # (Also in helpers)
-        pins[3].r1 = Signal()
-
         self.submodules.hub75 = hub75.Hub75(pins_common, pins, self.sdram)
 
         # Ethernet / Etherbone ---------------------------------------------------------------------

@@ -47,7 +47,7 @@ impl Hub75 {
     }
 
     pub fn set_img_param(&mut self, width: u16, length: u32) {
-        unsafe { self.hub75.ctrl.write(|w| w.width().bits(width)) };
+        unsafe { self.hub75.ctrl.modify(|_, w| w.width().bits(width)) };
         self.length = length;
     }
 

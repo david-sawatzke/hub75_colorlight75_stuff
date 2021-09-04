@@ -1,7 +1,7 @@
 use core::fmt::Write;
 
 use crate::hal;
-use crate::hub75::Hub75;
+use crate::hub75::{Hub75, OutputMode};
 use crate::img_flash::Flash;
 use embedded_hal::prelude::_embedded_hal_blocking_serial_Write;
 use litex_pac::pac;
@@ -47,6 +47,14 @@ pub const ROOT_MENU: Menu<Context> = Menu {
             },
             command: "default_image",
             help: Some("Displays the default image"),
+        },
+        &Item {
+            item_type: ItemType::Callback {
+                function: default_indexed_image,
+                parameters: &[],
+            },
+            command: "default_indexed_image",
+            help: Some("Displays the default indexed image"),
         },
         &Item {
             item_type: ItemType::Callback {
@@ -213,6 +221,28 @@ fn default_image(
     let image = img::load_default_image();
     hub75.set_img_param(image.0, image.1);
     hub75.write_img_data(0, image.3);
+    hub75.set_mode(OutputMode::FullColor);
+    hub75.on();
+}
+
+fn default_indexed_image(
+    _menu: &Menu<Context>,
+    _item: &Item<Context>,
+    _args: &[&str],
+    context: &mut Context,
+) {
+    use crate::img;
+    let hub75 = &mut context.hub75;
+    writeln!(context.serial, "Start load");
+    let image = img::load_default_indexed_image();
+    writeln!(context.serial, "loading");
+    hub75.set_img_param(image.0, image.1);
+    writeln!(context.serial, "data");
+    hub75.write_img_data(0, image.3);
+    writeln!(context.serial, "mode");
+    hub75.set_mode(OutputMode::Indexed);
+    writeln!(context.serial, "palette");
+    hub75.set_palette(0, image.4);
     hub75.on();
 }
 
@@ -228,6 +258,7 @@ fn load_spi_image(
     hub75.set_img_param(image.0, image.1);
     hub75.set_panel_params(image.2);
     hub75.write_img_data(0, image.3);
+    // TODO indexed
     hub75.on();
 }
 

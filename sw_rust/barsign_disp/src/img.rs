@@ -1,5 +1,6 @@
 use core::convert::TryInto;
 pub static IMG_FILE: &'static [u8] = include_bytes!("../../../img_data.bin");
+pub static IMG_FILE_INDEXED: &'static [u8] = include_bytes!("../../../img_data_indexed.bin");
 
 pub fn load_default_image() -> (
     u16,
@@ -8,6 +9,51 @@ pub fn load_default_image() -> (
     impl Iterator<Item = u32>,
 ) {
     load_image(IMG_FILE).expect("Precompiled image should be valid")
+}
+
+pub fn load_default_indexed_image() -> (
+    u16,
+    u32,
+    impl Iterator<Item = u32>,
+    impl Iterator<Item = u32>,
+    impl Iterator<Item = u32>,
+) {
+    load_indexed_image(IMG_FILE_INDEXED).expect("Precompiled indexed image should be valid")
+}
+
+/// Load indexed image with header & stuff
+pub fn load_indexed_image(
+    data: &[u8],
+) -> Result<
+    (
+        u16,
+        u32,
+        impl Iterator<Item = u32> + '_,
+        impl Iterator<Item = u32> + '_,
+        impl Iterator<Item = u32> + '_,
+    ),
+    (),
+> {
+    let (header, data) = data.split_at(256);
+    let mut header = header
+        .chunks(4)
+        .map(|x: &[u8]| u32::from_le_bytes(x.try_into().unwrap()));
+    let header_start = header.next().unwrap();
+    if header_start & (1 << 31) == 0 {
+        return Err(());
+    }
+    let width = (header_start & 0xFFFF) as u16;
+    let length = header.next().unwrap();
+
+    let (data, colors) = data.split_at(length as usize);
+
+    let data = data.iter().map(|x| *x as u32).take(length as usize);
+
+    let colors = colors
+        .chunks(4)
+        .map(|x: &[u8]| u32::from_le_bytes(x.try_into().unwrap()));
+
+    Ok((width, length, header.skip(2), data, colors.take(256)))
 }
 
 /// Load image with header & stuff
@@ -29,7 +75,11 @@ pub fn load_image(
     let data = data
         .chunks(4)
         .map(|x: &[u8]| u32::from_le_bytes(x.try_into().unwrap()));
-    let width = (header.next().unwrap() & 0xFFFF) as u16;
+    let header_start = header.next().unwrap();
+    if (header_start & (1 << 31)) != 0 {
+        return Err(());
+    }
+    let width = (header_start & 0xFFFF) as u16;
     let length = header.next().unwrap();
 
     Ok((width, length, header.skip(2), data.take(length as usize)))

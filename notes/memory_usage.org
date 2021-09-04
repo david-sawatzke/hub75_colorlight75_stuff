@@ -48,5 +48,6 @@ output 0, chain 1
 | reserved (16) | y (8) | x (8) |
 256-4*4-4*8*4=112 Bytes filler
 Contents:
+32 bits for non-indexed, 8 bits for indexed
 | display array                         |
 | palette, length 1024 bytes if indexed |

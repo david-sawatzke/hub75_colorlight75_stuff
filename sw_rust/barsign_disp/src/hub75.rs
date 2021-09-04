@@ -15,7 +15,7 @@ impl Hub75 {
     pub fn new(hub75: pac::HUB75, hub75_palette: pac::HUB75_PALETTE) -> Self {
         let hub75_data = unsafe {
             core::slice::from_raw_parts_mut(
-                (0x40000000 + 0x00400000 / 2) as *mut u32,
+                (0x90000000u32 + 0x00400000 / 2) as *mut u32,
                 0x00400000 / 2 / 4,
             )
         };

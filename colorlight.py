@@ -30,7 +30,9 @@ from litex.soc.integration.soc_core import *
 from litex.soc.integration.soc import SoCRegion
 from litex.soc.integration.builder import *
 from litex.soc.interconnect.wishbone import SRAM, Interface
+from litex.soc.interconnect import wishbone
 from litex.soc.integration import export
+from litedram.frontend.wishbone import LiteDRAMWishbone2Native
 
 from litedram.modules import M12L16161A
 from litedram.phy import GENSDRPHY, HalfRateGENSDRPHY
@@ -176,7 +178,7 @@ class BaseSoC(SoCCore):
         sdrphy_cls = HalfRateGENSDRPHY if sdram_rate == "1:2" else GENSDRPHY
         self.submodules.sdrphy = sdrphy_cls(platform.request("sdram"))
         sdram_cls = M12L16161A
-        sdram_size = 0x40000000
+        sdram_size = 4 * 1024 * 1024
         self.add_sdram(
             "sdram",
             phy=self.sdrphy,
@@ -187,6 +189,18 @@ class BaseSoC(SoCCore):
             l2_cache_reverse=False,
             l2_cache_full_memory_we=False,
         )
+
+        # Add special, uncached mirror of sdram
+        port = self.sdram.crossbar.get_port()
+
+        wb_sdram = wishbone.Interface()
+        self.bus.add_slave("main_ram_uncached", wb_sdram,
+            SoCRegion(origin=0x90000000, size=sdram_size, cached=False))
+        self.submodules.wishbone_bridge = LiteDRAMWishbone2Native(
+            wishbone     = wb_sdram,
+            port         = port,
+            base_address = self.bus.regions["main_ram_uncached"].origin)
+
 
         # Add hub75 connectors
         platform.add_extension(helper.hub75_conn(platform))

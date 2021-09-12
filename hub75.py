@@ -306,7 +306,7 @@ class RamAddressGenerator(Module):
         collumns_2,
         chain_length_2,
     ):
-        outputs_2 = 2
+        outputs_2 = 3
         counter = Signal(collumns_2 + 1 + chain_length_2 + outputs_2)
         running = Signal(1)
         self.started = Signal()

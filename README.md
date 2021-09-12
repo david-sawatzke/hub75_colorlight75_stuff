@@ -58,5 +58,12 @@ Run it
 ``` sh
 ./litex_sim.py --sdram-init sw/firmware_sim.bin 
 ```
+
+## Serial Port
+
+``` sh
+$ picocom -b 115200 /dev/ttyUSB1 --imap lfcrlf
+```
+
 ## Pitfalls I ran into
 1. `and` is silently dropped, maybe use `&` instead

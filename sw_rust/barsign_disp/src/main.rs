@@ -99,6 +99,7 @@ fn main() -> ! {
             if socket.may_recv() {
                 while socket.can_recv() {
                     let data = socket.recv(|buffer| (1, buffer[0])).unwrap();
+                    r.input_byte(if data == b'\n' { b'\r' } else { data });
                     socket.send_slice(core::slice::from_ref(&data)).unwrap();
                 }
             } else if socket.may_send() {

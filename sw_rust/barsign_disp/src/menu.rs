@@ -233,15 +233,10 @@ fn default_indexed_image(
 ) {
     use crate::img;
     let hub75 = &mut context.hub75;
-    writeln!(context.serial, "Start load");
     let image = img::load_default_indexed_image();
-    writeln!(context.serial, "loading");
     hub75.set_img_param(image.0, image.1);
-    writeln!(context.serial, "data");
     hub75.write_img_data(0, image.3);
-    writeln!(context.serial, "mode");
     hub75.set_mode(OutputMode::Indexed);
-    writeln!(context.serial, "palette");
     hub75.set_palette(0, image.4);
     hub75.on();
 }

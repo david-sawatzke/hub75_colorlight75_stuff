@@ -153,7 +153,15 @@ fn main() -> ! {
             match socket.recv() {
                 Ok((data, _endpoint)) => {
                     if let Ok((offset, data)) = artnet::packet2hub75(data) {
-                        r.context.hub75.write_img_data(offset, data);
+                        // Palette is set via the two *last* universes
+                        let palette_offset = ((1 << 16) - 2) * 170;
+                        if offset < palette_offset {
+                            r.context.hub75.write_img_data(offset, data);
+                        } else {
+                            r.context
+                                .hub75
+                                .set_palette((offset - palette_offset) as u8, data);
+                        }
                         // writeln!(r.context.serial, "{}", offset);
                     }
                 }

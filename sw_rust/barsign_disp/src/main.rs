@@ -10,6 +10,7 @@ use embedded_hal::blocking::serial::Write;
 use embedded_hal::serial::Read;
 use ethernet::Eth;
 use hal::*;
+use heapless::Vec;
 use litex_pac as pac;
 use nb::block;
 use riscv_rt::entry;
@@ -37,8 +38,10 @@ fn main() -> ! {
         sys_clk: 50_000_000,
     };
     let mut buffer = [0u8; 64];
+    let out_data = heapless::Vec::new();
+    let output = menu::Output { serial, out_data };
     let context = menu::Context {
-        serial,
+        output,
         hub75,
         flash,
     };
@@ -83,27 +86,61 @@ fn main() -> ! {
     let udp_server_handle = sockets.add(udp_server_socket);
 
     let mut time = Instant::from_millis(0);
+    let mut telnet_active = false;
     loop {
         match iface.poll(&mut sockets, time) {
             Ok(_) => {}
             Err(_) => {}
         }
 
-        // tcp:6970: echo
+        // tcp:23: telnet for menu
         {
             let mut socket = sockets.get::<TcpSocket>(tcp_server_handle);
             if !socket.is_open() {
-                socket.listen(6970).unwrap()
+                socket.listen(23).unwrap();
             }
+            if !telnet_active & socket.is_active() {
+                r.context.output.out_data.clear();
+                r.context
+                    .output
+                    .out_data
+                    .extend_from_slice(
+                        // Taken from https://stackoverflow.com/a/4532395
+                        // Does magic telnet stuff to behave more like a dumb serial terminal
+                        b"\xFF\xFD\x22\xFF\xFA\x22\x01\x00\xFF\xF0\xFF\xFB\x01\r\nWelcome to the menu. Use \"help\" for help\r\n",
+                    )
+                    .expect("Should always work");
+            }
+            telnet_active = socket.is_active();
 
             if socket.may_recv() {
                 while socket.can_recv() {
-                    let data = socket.recv(|buffer| (1, buffer[0])).unwrap();
-                    r.input_byte(if data == b'\n' { b'\r' } else { data });
-                    socket.send_slice(core::slice::from_ref(&data)).unwrap();
+                    let mut buffer = [0u8; 64];
+                    let received = {
+                        match socket.recv_slice(&mut buffer) {
+                            Ok(received) => received,
+                            _ => 0,
+                        }
+                    };
+                    for byte in &buffer[..received] {
+                        if *byte != 0 {
+                            r.input_byte(*byte);
+                        }
+                        // r.input_byte(if data == b'\n' { b'\r' } else { data });
+                    }
+
+                    // socket.send_slice(core::slice::from_ref(&data)).unwrap();
                 }
-            } else if socket.may_send() {
+            } else if socket.can_send() {
                 socket.close();
+            }
+
+            if socket.can_send() {
+                if let Ok(sent) = socket.send_slice(&r.context.output.out_data) {
+                    let new_data = Vec::from_slice(&r.context.output.out_data[sent..])
+                        .expect("New size is the same as the old size, can never fail");
+                    r.context.output.out_data = new_data;
+                }
             }
         }
         // udp:6454: artnet
@@ -127,7 +164,7 @@ fn main() -> ! {
             //     socket.send_slice(data, endpoint).unwrap();
             // }
         }
-        if let Ok(data) = r.context.serial.read() {
+        if let Ok(data) = r.context.output.serial.read() {
             r.input_byte(if data == b'\n' { b'\r' } else { data });
         }
 

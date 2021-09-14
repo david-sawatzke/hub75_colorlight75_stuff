@@ -3,21 +3,39 @@ use core::fmt::Write;
 use crate::hal;
 use crate::hub75::{Hub75, OutputMode};
 use crate::img_flash::Flash;
-use embedded_hal::prelude::_embedded_hal_blocking_serial_Write;
+use heapless::Vec;
 use litex_pac::pac;
 pub use menu::Runner;
 use menu::*;
 
-pub struct Context {
+pub struct Output {
     pub serial: hal::UART,
+    // Should be large enough for the help output
+    pub out_data: Vec<u8, 500>,
+}
+
+impl core::fmt::Write for Output {
+    fn write_str(&mut self, s: &str) -> Result<(), core::fmt::Error> {
+        self.serial.write_str(s).ok();
+        for byte in s.as_bytes() {
+            if *byte == b'\n' {
+                self.out_data.push(b'\r').ok();
+            }
+            self.out_data.push(*byte).ok();
+        }
+        Ok(())
+    }
+}
+
+pub struct Context {
+    pub output: Output,
     pub hub75: Hub75,
     pub flash: Flash,
 }
 
 impl core::fmt::Write for Context {
     fn write_str(&mut self, s: &str) -> Result<(), core::fmt::Error> {
-        use embedded_hal::blocking::serial::Write;
-        self.serial.bwrite_all(s.as_bytes()).ok();
+        self.output.write_str(s).ok();
         Ok(())
     }
 }
@@ -195,7 +213,7 @@ fn out_test(_menu: &Menu<Context>, _item: &Item<Context>, _args: &[&str], contex
     for (byte_count, data) in img_data.enumerate() {
         if crate::img::IMG_FILE[byte_count] != data {
             write!(
-                context.serial,
+                context.output,
                 "Addr 0x{:x} and content 0x{:x} don't match\n",
                 byte_count, data
             )
@@ -203,7 +221,7 @@ fn out_test(_menu: &Menu<Context>, _item: &Item<Context>, _args: &[&str], contex
         }
         size = byte_count + 1;
     }
-    write!(context.serial, "Size 0x{:x}", size).unwrap();
+    write!(context.output, "Size 0x{:x}", size).unwrap();
     hub75.set_img_param(128, 128 * 128);
     let data = [0xFF0000, 0x00FF00, 0x0000FF];
     hub75.write_img_data(0, data.iter().cycle().take(128).map(|x| *x));
@@ -291,7 +309,12 @@ fn get_image_param(
     context: &mut Context,
 ) {
     let (width, length) = context.hub75.get_img_param();
-    writeln!(context, r#"{{"width": {}, "length": {}}}"#, width, length).unwrap();
+    writeln!(
+        context.output,
+        r#"{{"width": {}, "length": {}}}"#,
+        width, length
+    )
+    .unwrap();
 }
 
 fn set_image_param(
@@ -309,7 +332,7 @@ fn set_image_param(
         .unwrap()
         .parse();
     if width.is_err() || length.is_err() {
-        writeln!(context, "Invalid number given").unwrap();
+        writeln!(context.output, "Invalid number given").unwrap();
         return;
     }
     context.hub75.set_img_param(width.unwrap(), length.unwrap());
@@ -329,13 +352,13 @@ fn get_panel_param(
         .unwrap()
         .parse();
     if output.is_err() || chain_num.is_err() {
-        writeln!(context, "Invalid number given").unwrap();
+        writeln!(context.output, "Invalid number given").unwrap();
         return;
     }
     let (x, y) = context
         .hub75
         .get_panel_param(output.unwrap(), chain_num.unwrap());
-    writeln!(context, r#"{{"x": {}, "y": {}}}"#, x, y).unwrap();
+    writeln!(context.output, r#"{{"x": {}, "y": {}}}"#, x, y).unwrap();
 }
 fn set_panel_param(
     _menu: &Menu<Context>,
@@ -354,7 +377,7 @@ fn set_panel_param(
     let x: Result<u8, _> = argument_finder(item, args, "x").unwrap().unwrap().parse();
     let y: Result<u8, _> = argument_finder(item, args, "y").unwrap().unwrap().parse();
     if output.is_err() || chain_num.is_err() || x.is_err() || y.is_err() {
-        writeln!(context, "Invalid number given").unwrap();
+        writeln!(context.output, "Invalid number given").unwrap();
         return;
     }
     context

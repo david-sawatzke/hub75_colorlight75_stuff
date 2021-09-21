@@ -3,12 +3,11 @@
 # Using binary code modulation (http://www.batsocks.co.uk/readme/art_bcm_1.htm)
 from types import SimpleNamespace
 
-from migen import If, Signal, Array, Memory, Module, FSM, NextValue, NextState, Mux, Cat
+from migen import If, Signal, Array, Memory, Module, FSM, NextValue, NextState, Mux, Cat, Case
 from litex.soc.interconnect.csr import AutoCSR, CSRStorage, CSRField
 from litedram.frontend.dma import LiteDRAMDMAReader
 
 sdram_offset = 0x00400000//2//4
-#              0x00200000
 
 
 class Hub75(Module, AutoCSR):
@@ -22,16 +21,19 @@ class Hub75(Module, AutoCSR):
         chain_length_2 = 2
         panel_config = Array()
         for panel_output in range(8):
-                for chain_pos in range(1 << chain_length_2):
-                    name = "panel" + str(panel_output) + "_" + str(chain_pos)
-                    csr = CSRStorage(name=name,
-                        fields=[
-                        CSRField("x", description="x position in multiples of 32", size=8, offset=0),
-                        CSRField("y", description="y position in multiples of 32", size=8, offset=8),
-                        # CSRField("vert", description="Module is vertical if enabled", offset=16),
-                    ])
-                    setattr(self, name, csr)
-                    panel_config.append(csr)
+            for chain_pos in range(1 << chain_length_2):
+                name = "panel" + str(panel_output) + "_" + str(chain_pos)
+                csr = CSRStorage(name=name,
+                                 fields=[
+                                     CSRField(
+                                         "x", description="x position in multiples of 32", size=8, offset=0),
+                                     CSRField(
+                                         "y", description="y position in multiples of 32", size=8, offset=8),
+                                     CSRField(
+                                         "rot", description="rotation in clockwise 90°", size=2, offset=16),
+                                 ])
+                setattr(self, name, csr)
+                panel_config.append(csr)
 
         read_port = sdram.crossbar.get_port(mode="read", data_width=32)
         output_config = SimpleNamespace(
@@ -72,7 +74,8 @@ class FrameController(Module):
 
         counter = Signal(max=counter_max)
         self.output_bit = brightness_bit = Signal(max=brightness_bits)
-        brightness_counter = Signal(max=(1 << brightness_bits) * brightness_psc)
+        brightness_counter = Signal(
+            max=(1 << brightness_bits) * brightness_psc)
         row_active = Signal(4)
         self.row_select = row_shifting = Signal(4)
         self.submodules.fsm = fsm = FSM(reset_state="RST")
@@ -153,33 +156,34 @@ class RowController(Module):
         )
 
         self.submodules.output = Output(outputs_specific,
-            row_readers[shifting_buffer], self.row_module.counter,
-            hub75_common.output_bit, self.row_module.buffer_select
-        )
+                                        row_readers[shifting_buffer], self.row_module.counter,
+                                        hub75_common.output_bit, self.row_module.buffer_select
+                                        )
 
         self.submodules.fsm = FSM(reset_state="IDLE")
         self.fsm.act("IDLE",
-                If((hub75_common.start_shifting & (hub75_common.output_bit == 7)),
-                   mem_start.eq(True),
-                   row_start.eq(True),
-                   NextState("WAIT_TILL_START"))
-                .Elif((hub75_common.start_shifting & (hub75_common.output_bit != 7)),
-                      row_start.eq(True),
-                      NextState("WAIT_TILL_START"))
-                .Else(
-                    hub75_common.shifting_done.eq(True),
-                ))
+                     If((hub75_common.start_shifting & (hub75_common.output_bit == 7)),
+                        mem_start.eq(True),
+                        row_start.eq(True),
+                        NextState("WAIT_TILL_START"))
+                     .Elif((hub75_common.start_shifting & (hub75_common.output_bit != 7)),
+                           row_start.eq(True),
+                           NextState("WAIT_TILL_START"))
+                     .Else(
+                         hub75_common.shifting_done.eq(True),
+                     ))
         self.fsm.act("WAIT_TILL_START",
-                If(self.row_module.shifting,
-                   NextState("SHIFT_OUT")))
+                     If(self.row_module.shifting,
+                        NextState("SHIFT_OUT")))
         self.fsm.act("SHIFT_OUT",
-                If((hub75_common.output_bit == 0) & ~self.row_module.shifting
-                   & self.buffer_reader.done,
-                   NextValue(shifting_buffer, ~shifting_buffer),
-                   NextState("IDLE")),
-                If((hub75_common.output_bit != 0) & ~self.row_module.shifting,
-                   NextState("IDLE"))
-                )
+                     If((hub75_common.output_bit == 0) & ~self.row_module.shifting
+                        & self.buffer_reader.done,
+                        NextValue(shifting_buffer, ~shifting_buffer),
+                        NextState("IDLE")),
+                     If((hub75_common.output_bit != 0) & ~self.row_module.shifting,
+                         NextState("IDLE"))
+                     )
+
 
 class RamToBufferReader(Module):
     def __init__(
@@ -272,7 +276,7 @@ class RamToBufferReader(Module):
                 If(gamma_data_valid,
                     buffer_write_port[i].dat_w.eq(gamma_data),
                     buffer_write_port[i].adr.eq(buffer_address),
-                )
+                   )
             ]
         self.comb += [
             buffer_select.eq(buffer_counter[collumns_2 + 1 + chain_length_2:]),
@@ -328,7 +332,7 @@ class RamAddressGenerator(Module):
             .Elif(counter == 0)
             .Elif((counter == (
                 (1 << (collumns_2 + 1 + chain_length_2 + outputs_2)) - 1)) & en,
-                  counter.eq(0))
+                counter.eq(0))
             .Elif((counter > 0) & en,
                   counter.eq(counter + 1)),
         ]
@@ -349,15 +353,30 @@ class RamAddressGenerator(Module):
         # Delay 2
         self.adr = Signal(32)
         self.valid = Signal(1)
-        # counter is at 0 when we start
+        row_comb = Signal(6)
+        x_offset = Signal(6)
+        y_offset = Signal(6)
+        self.comb += [
+            row_comb.eq(half_select * 16 + row),
+            Case((cur_panel_config >> 16) & 0x3, {
+                 0b00: [x_offset.eq(collumn),
+                        y_offset.eq(row_comb)],
+                 0b01: [x_offset.eq(31 - row_comb),
+                        y_offset.eq(collumn)],
+                 0b10: [x_offset.eq(63 - collumn),
+                        y_offset.eq(31 - row_comb)],
+                 0b11:[x_offset.eq(row_comb),
+                       y_offset.eq(63 - collumn)],
+                 })
+        ]
         self.sync += [
             If(en,
                self.valid.eq(config_lookup_valid),
                 self.adr.eq(
                     sdram_offset
-                    + (row + half_select * 16 +
+                    + (y_offset +
                         ((cur_panel_config >> 8) & 0xFF) * 32)
-                    * image_width + collumn
+                    * image_width + x_offset
                     + (cur_panel_config & 0xFF) * 32),
                 If(self.valid & (~config_lookup_valid),
                     self.started.eq(False)))

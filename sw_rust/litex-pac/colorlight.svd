@@ -3,7 +3,7 @@
 <device schemaVersion="1.1" xmlns:xs="http://www.w3.org/2001/XMLSchema-instance" xs:noNamespaceSchemaLocation="CMSIS-SVD.xsd" >
     <vendor>litex</vendor>
     <name>SOC</name>
-    <description><![CDATA[Litex SoC 2021-08-13 16:42:24]]></description>
+    <description><![CDATA[Litex SoC 2021-09-21 23:32:29]]></description>
 
     <addressUnitBits>8</addressUnitBits>
     <width>32</width>
@@ -680,6 +680,13 @@ register to disable individual events.]]></description>
                             <lsb>8</lsb>
                             <description><![CDATA[y position in multiples of 32]]></description>
                         </field>
+                        <field>
+                            <name>rot</name>
+                            <msb>17</msb>
+                            <bitRange>[17:16]</bitRange>
+                            <lsb>16</lsb>
+                            <description><![CDATA[rotation in clockwise 90°]]></description>
+                        </field>
                     </fields>
                 </register>
                 <register>
@@ -701,6 +708,13 @@ register to disable individual events.]]></description>
                             <bitRange>[15:8]</bitRange>
                             <lsb>8</lsb>
                             <description><![CDATA[y position in multiples of 32]]></description>
+                        </field>
+                        <field>
+                            <name>rot</name>
+                            <msb>17</msb>
+                            <bitRange>[17:16]</bitRange>
+                            <lsb>16</lsb>
+                            <description><![CDATA[rotation in clockwise 90°]]></description>
                         </field>
                     </fields>
                 </register>
@@ -724,6 +738,13 @@ register to disable individual events.]]></description>
                             <lsb>8</lsb>
                             <description><![CDATA[y position in multiples of 32]]></description>
                         </field>
+                        <field>
+                            <name>rot</name>
+                            <msb>17</msb>
+                            <bitRange>[17:16]</bitRange>
+                            <lsb>16</lsb>
+                            <description><![CDATA[rotation in clockwise 90°]]></description>
+                        </field>
                     </fields>
                 </register>
                 <register>
@@ -745,6 +766,13 @@ register to disable individual events.]]></description>
                             <bitRange>[15:8]</bitRange>
                             <lsb>8</lsb>
                             <description><![CDATA[y position in multiples of 32]]></description>
+                        </field>
+                        <field>
+                            <name>rot</name>
+                            <msb>17</msb>
+                            <bitRange>[17:16]</bitRange>
+                            <lsb>16</lsb>
+                            <description><![CDATA[rotation in clockwise 90°]]></description>
                         </field>
                     </fields>
                 </register>
@@ -768,6 +796,13 @@ register to disable individual events.]]></description>
                             <lsb>8</lsb>
                             <description><![CDATA[y position in multiples of 32]]></description>
                         </field>
+                        <field>
+                            <name>rot</name>
+                            <msb>17</msb>
+                            <bitRange>[17:16]</bitRange>
+                            <lsb>16</lsb>
+                            <description><![CDATA[rotation in clockwise 90°]]></description>
+                        </field>
                     </fields>
                 </register>
                 <register>
@@ -789,6 +824,13 @@ register to disable individual events.]]></description>
                             <bitRange>[15:8]</bitRange>
                             <lsb>8</lsb>
                             <description><![CDATA[y position in multiples of 32]]></description>
+                        </field>
+                        <field>
+                            <name>rot</name>
+                            <msb>17</msb>
+                            <bitRange>[17:16]</bitRange>
+                            <lsb>16</lsb>
+                            <description><![CDATA[rotation in clockwise 90°]]></description>
                         </field>
                     </fields>
                 </register>
@@ -812,6 +854,13 @@ register to disable individual events.]]></description>
                             <lsb>8</lsb>
                             <description><![CDATA[y position in multiples of 32]]></description>
                         </field>
+                        <field>
+                            <name>rot</name>
+                            <msb>17</msb>
+                            <bitRange>[17:16]</bitRange>
+                            <lsb>16</lsb>
+                            <description><![CDATA[rotation in clockwise 90°]]></description>
+                        </field>
                     </fields>
                 </register>
                 <register>
@@ -833,6 +882,13 @@ register to disable individual events.]]></description>
                             <bitRange>[15:8]</bitRange>
                             <lsb>8</lsb>
                             <description><![CDATA[y position in multiples of 32]]></description>
+                        </field>
+                        <field>
+                            <name>rot</name>
+                            <msb>17</msb>
+                            <bitRange>[17:16]</bitRange>
+                            <lsb>16</lsb>
+                            <description><![CDATA[rotation in clockwise 90°]]></description>
                         </field>
                     </fields>
                 </register>
@@ -856,6 +912,13 @@ register to disable individual events.]]></description>
                             <lsb>8</lsb>
                             <description><![CDATA[y position in multiples of 32]]></description>
                         </field>
+                        <field>
+                            <name>rot</name>
+                            <msb>17</msb>
+                            <bitRange>[17:16]</bitRange>
+                            <lsb>16</lsb>
+                            <description><![CDATA[rotation in clockwise 90°]]></description>
+                        </field>
                     </fields>
                 </register>
                 <register>
@@ -877,6 +940,13 @@ register to disable individual events.]]></description>
                             <bitRange>[15:8]</bitRange>
                             <lsb>8</lsb>
                             <description><![CDATA[y position in multiples of 32]]></description>
+                        </field>
+                        <field>
+                            <name>rot</name>
+                            <msb>17</msb>
+                            <bitRange>[17:16]</bitRange>
+                            <lsb>16</lsb>
+                            <description><![CDATA[rotation in clockwise 90°]]></description>
                         </field>
                     </fields>
                 </register>
@@ -900,6 +970,13 @@ register to disable individual events.]]></description>
                             <lsb>8</lsb>
                             <description><![CDATA[y position in multiples of 32]]></description>
                         </field>
+                        <field>
+                            <name>rot</name>
+                            <msb>17</msb>
+                            <bitRange>[17:16]</bitRange>
+                            <lsb>16</lsb>
+                            <description><![CDATA[rotation in clockwise 90°]]></description>
+                        </field>
                     </fields>
                 </register>
                 <register>
@@ -921,6 +998,13 @@ register to disable individual events.]]></description>
                             <bitRange>[15:8]</bitRange>
                             <lsb>8</lsb>
                             <description><![CDATA[y position in multiples of 32]]></description>
+                        </field>
+                        <field>
+                            <name>rot</name>
+                            <msb>17</msb>
+                            <bitRange>[17:16]</bitRange>
+                            <lsb>16</lsb>
+                            <description><![CDATA[rotation in clockwise 90°]]></description>
                         </field>
                     </fields>
                 </register>
@@ -944,6 +1028,13 @@ register to disable individual events.]]></description>
                             <lsb>8</lsb>
                             <description><![CDATA[y position in multiples of 32]]></description>
                         </field>
+                        <field>
+                            <name>rot</name>
+                            <msb>17</msb>
+                            <bitRange>[17:16]</bitRange>
+                            <lsb>16</lsb>
+                            <description><![CDATA[rotation in clockwise 90°]]></description>
+                        </field>
                     </fields>
                 </register>
                 <register>
@@ -965,6 +1056,13 @@ register to disable individual events.]]></description>
                             <bitRange>[15:8]</bitRange>
                             <lsb>8</lsb>
                             <description><![CDATA[y position in multiples of 32]]></description>
+                        </field>
+                        <field>
+                            <name>rot</name>
+                            <msb>17</msb>
+                            <bitRange>[17:16]</bitRange>
+                            <lsb>16</lsb>
+                            <description><![CDATA[rotation in clockwise 90°]]></description>
                         </field>
                     </fields>
                 </register>
@@ -988,6 +1086,13 @@ register to disable individual events.]]></description>
                             <lsb>8</lsb>
                             <description><![CDATA[y position in multiples of 32]]></description>
                         </field>
+                        <field>
+                            <name>rot</name>
+                            <msb>17</msb>
+                            <bitRange>[17:16]</bitRange>
+                            <lsb>16</lsb>
+                            <description><![CDATA[rotation in clockwise 90°]]></description>
+                        </field>
                     </fields>
                 </register>
                 <register>
@@ -1009,6 +1114,13 @@ register to disable individual events.]]></description>
                             <bitRange>[15:8]</bitRange>
                             <lsb>8</lsb>
                             <description><![CDATA[y position in multiples of 32]]></description>
+                        </field>
+                        <field>
+                            <name>rot</name>
+                            <msb>17</msb>
+                            <bitRange>[17:16]</bitRange>
+                            <lsb>16</lsb>
+                            <description><![CDATA[rotation in clockwise 90°]]></description>
                         </field>
                     </fields>
                 </register>
@@ -1032,6 +1144,13 @@ register to disable individual events.]]></description>
                             <lsb>8</lsb>
                             <description><![CDATA[y position in multiples of 32]]></description>
                         </field>
+                        <field>
+                            <name>rot</name>
+                            <msb>17</msb>
+                            <bitRange>[17:16]</bitRange>
+                            <lsb>16</lsb>
+                            <description><![CDATA[rotation in clockwise 90°]]></description>
+                        </field>
                     </fields>
                 </register>
                 <register>
@@ -1053,6 +1172,13 @@ register to disable individual events.]]></description>
                             <bitRange>[15:8]</bitRange>
                             <lsb>8</lsb>
                             <description><![CDATA[y position in multiples of 32]]></description>
+                        </field>
+                        <field>
+                            <name>rot</name>
+                            <msb>17</msb>
+                            <bitRange>[17:16]</bitRange>
+                            <lsb>16</lsb>
+                            <description><![CDATA[rotation in clockwise 90°]]></description>
                         </field>
                     </fields>
                 </register>
@@ -1076,6 +1202,13 @@ register to disable individual events.]]></description>
                             <lsb>8</lsb>
                             <description><![CDATA[y position in multiples of 32]]></description>
                         </field>
+                        <field>
+                            <name>rot</name>
+                            <msb>17</msb>
+                            <bitRange>[17:16]</bitRange>
+                            <lsb>16</lsb>
+                            <description><![CDATA[rotation in clockwise 90°]]></description>
+                        </field>
                     </fields>
                 </register>
                 <register>
@@ -1097,6 +1230,13 @@ register to disable individual events.]]></description>
                             <bitRange>[15:8]</bitRange>
                             <lsb>8</lsb>
                             <description><![CDATA[y position in multiples of 32]]></description>
+                        </field>
+                        <field>
+                            <name>rot</name>
+                            <msb>17</msb>
+                            <bitRange>[17:16]</bitRange>
+                            <lsb>16</lsb>
+                            <description><![CDATA[rotation in clockwise 90°]]></description>
                         </field>
                     </fields>
                 </register>
@@ -1120,6 +1260,13 @@ register to disable individual events.]]></description>
                             <lsb>8</lsb>
                             <description><![CDATA[y position in multiples of 32]]></description>
                         </field>
+                        <field>
+                            <name>rot</name>
+                            <msb>17</msb>
+                            <bitRange>[17:16]</bitRange>
+                            <lsb>16</lsb>
+                            <description><![CDATA[rotation in clockwise 90°]]></description>
+                        </field>
                     </fields>
                 </register>
                 <register>
@@ -1141,6 +1288,13 @@ register to disable individual events.]]></description>
                             <bitRange>[15:8]</bitRange>
                             <lsb>8</lsb>
                             <description><![CDATA[y position in multiples of 32]]></description>
+                        </field>
+                        <field>
+                            <name>rot</name>
+                            <msb>17</msb>
+                            <bitRange>[17:16]</bitRange>
+                            <lsb>16</lsb>
+                            <description><![CDATA[rotation in clockwise 90°]]></description>
                         </field>
                     </fields>
                 </register>
@@ -1164,6 +1318,13 @@ register to disable individual events.]]></description>
                             <lsb>8</lsb>
                             <description><![CDATA[y position in multiples of 32]]></description>
                         </field>
+                        <field>
+                            <name>rot</name>
+                            <msb>17</msb>
+                            <bitRange>[17:16]</bitRange>
+                            <lsb>16</lsb>
+                            <description><![CDATA[rotation in clockwise 90°]]></description>
+                        </field>
                     </fields>
                 </register>
                 <register>
@@ -1185,6 +1346,13 @@ register to disable individual events.]]></description>
                             <bitRange>[15:8]</bitRange>
                             <lsb>8</lsb>
                             <description><![CDATA[y position in multiples of 32]]></description>
+                        </field>
+                        <field>
+                            <name>rot</name>
+                            <msb>17</msb>
+                            <bitRange>[17:16]</bitRange>
+                            <lsb>16</lsb>
+                            <description><![CDATA[rotation in clockwise 90°]]></description>
                         </field>
                     </fields>
                 </register>
@@ -1208,6 +1376,13 @@ register to disable individual events.]]></description>
                             <lsb>8</lsb>
                             <description><![CDATA[y position in multiples of 32]]></description>
                         </field>
+                        <field>
+                            <name>rot</name>
+                            <msb>17</msb>
+                            <bitRange>[17:16]</bitRange>
+                            <lsb>16</lsb>
+                            <description><![CDATA[rotation in clockwise 90°]]></description>
+                        </field>
                     </fields>
                 </register>
                 <register>
@@ -1229,6 +1404,13 @@ register to disable individual events.]]></description>
                             <bitRange>[15:8]</bitRange>
                             <lsb>8</lsb>
                             <description><![CDATA[y position in multiples of 32]]></description>
+                        </field>
+                        <field>
+                            <name>rot</name>
+                            <msb>17</msb>
+                            <bitRange>[17:16]</bitRange>
+                            <lsb>16</lsb>
+                            <description><![CDATA[rotation in clockwise 90°]]></description>
                         </field>
                     </fields>
                 </register>
@@ -1252,6 +1434,13 @@ register to disable individual events.]]></description>
                             <lsb>8</lsb>
                             <description><![CDATA[y position in multiples of 32]]></description>
                         </field>
+                        <field>
+                            <name>rot</name>
+                            <msb>17</msb>
+                            <bitRange>[17:16]</bitRange>
+                            <lsb>16</lsb>
+                            <description><![CDATA[rotation in clockwise 90°]]></description>
+                        </field>
                     </fields>
                 </register>
                 <register>
@@ -1273,6 +1462,13 @@ register to disable individual events.]]></description>
                             <bitRange>[15:8]</bitRange>
                             <lsb>8</lsb>
                             <description><![CDATA[y position in multiples of 32]]></description>
+                        </field>
+                        <field>
+                            <name>rot</name>
+                            <msb>17</msb>
+                            <bitRange>[17:16]</bitRange>
+                            <lsb>16</lsb>
+                            <description><![CDATA[rotation in clockwise 90°]]></description>
                         </field>
                     </fields>
                 </register>
@@ -1296,6 +1492,13 @@ register to disable individual events.]]></description>
                             <lsb>8</lsb>
                             <description><![CDATA[y position in multiples of 32]]></description>
                         </field>
+                        <field>
+                            <name>rot</name>
+                            <msb>17</msb>
+                            <bitRange>[17:16]</bitRange>
+                            <lsb>16</lsb>
+                            <description><![CDATA[rotation in clockwise 90°]]></description>
+                        </field>
                     </fields>
                 </register>
                 <register>
@@ -1317,6 +1520,13 @@ register to disable individual events.]]></description>
                             <bitRange>[15:8]</bitRange>
                             <lsb>8</lsb>
                             <description><![CDATA[y position in multiples of 32]]></description>
+                        </field>
+                        <field>
+                            <name>rot</name>
+                            <msb>17</msb>
+                            <bitRange>[17:16]</bitRange>
+                            <lsb>16</lsb>
+                            <description><![CDATA[rotation in clockwise 90°]]></description>
                         </field>
                     </fields>
                 </register>
@@ -1340,6 +1550,13 @@ register to disable individual events.]]></description>
                             <lsb>8</lsb>
                             <description><![CDATA[y position in multiples of 32]]></description>
                         </field>
+                        <field>
+                            <name>rot</name>
+                            <msb>17</msb>
+                            <bitRange>[17:16]</bitRange>
+                            <lsb>16</lsb>
+                            <description><![CDATA[rotation in clockwise 90°]]></description>
+                        </field>
                     </fields>
                 </register>
                 <register>
@@ -1361,6 +1578,13 @@ register to disable individual events.]]></description>
                             <bitRange>[15:8]</bitRange>
                             <lsb>8</lsb>
                             <description><![CDATA[y position in multiples of 32]]></description>
+                        </field>
+                        <field>
+                            <name>rot</name>
+                            <msb>17</msb>
+                            <bitRange>[17:16]</bitRange>
+                            <lsb>16</lsb>
+                            <description><![CDATA[rotation in clockwise 90°]]></description>
                         </field>
                     </fields>
                 </register>
@@ -1946,6 +2170,11 @@ register to disable individual events.]]></description>
                 <size>0x00400000</size>
             </memoryRegion>
             <memoryRegion>
+                <name>MAIN_RAM_UNCACHED</name>
+                <baseAddress>0x90000000</baseAddress>
+                <size>0x00400000</size>
+            </memoryRegion>
+            <memoryRegion>
                 <name>ETHMAC</name>
                 <baseAddress>0x80200000</baseAddress>
                 <size>0x00002000</size>
@@ -1967,7 +2196,7 @@ register to disable individual events.]]></description>
             <constant name="CONFIG_WITH_BUILD_TIME" value="None" />
             <constant name="FLASH_BOOT_ADDRESS" value="2148532224" />
             <constant name="SPIFLASH_PAGE_SIZE" value="256" />
-            <constant name="CONFIG_L2_SIZE" value="128" />
+            <constant name="CONFIG_L2_SIZE" value="8192" />
             <constant name="SDRAM_TEST_DISABLE" value="None" />
             <constant name="CONFIG_CSR_DATA_WIDTH" value="32" />
             <constant name="CONFIG_CSR_ALIGNMENT" value="32" />

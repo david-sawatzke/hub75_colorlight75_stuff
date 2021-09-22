@@ -162,11 +162,15 @@ pub const ROOT_MENU: Menu<Context> = Menu {
                     },
                     Parameter::Mandatory {
                         parameter_name: "x",
-                        help: None,
+                        help: Some("x offset in steps of 32"),
                     },
                     Parameter::Mandatory {
                         parameter_name: "y",
-                        help: None,
+                        help: Some("y offset in steps of 32"),
+                    },
+                    Parameter::Mandatory {
+                        parameter_name: "rotation",
+                        help: Some("Clockwise rotation in 90° increments"),
                     },
                 ],
             },
@@ -355,10 +359,15 @@ fn get_panel_param(
         writeln!(context.output, "Invalid number given").unwrap();
         return;
     }
-    let (x, y) = context
+    let (x, y, rotation) = context
         .hub75
         .get_panel_param(output.unwrap(), chain_num.unwrap());
-    writeln!(context.output, r#"{{"x": {}, "y": {}}}"#, x, y).unwrap();
+    writeln!(
+        context.output,
+        r#"{{"x": {}, "y": {}, "rotation": {}}}"#,
+        x, y, rotation
+    )
+    .unwrap();
 }
 fn set_panel_param(
     _menu: &Menu<Context>,
@@ -376,13 +385,21 @@ fn set_panel_param(
         .parse();
     let x: Result<u8, _> = argument_finder(item, args, "x").unwrap().unwrap().parse();
     let y: Result<u8, _> = argument_finder(item, args, "y").unwrap().unwrap().parse();
+    let rot: Result<u8, _> = argument_finder(item, args, "rotation")
+        .unwrap()
+        .unwrap()
+        .parse();
     if output.is_err() || chain_num.is_err() || x.is_err() || y.is_err() {
         writeln!(context.output, "Invalid number given").unwrap();
         return;
     }
-    context
-        .hub75
-        .set_panel_param(output.unwrap(), chain_num.unwrap(), x.unwrap(), y.unwrap());
+    context.hub75.set_panel_param(
+        output.unwrap(),
+        chain_num.unwrap(),
+        x.unwrap(),
+        y.unwrap(),
+        rot.unwrap(),
+    );
 }
 
 fn set_default_panel_params(
@@ -391,10 +408,10 @@ fn set_default_panel_params(
     _args: &[&str],
     context: &mut Context,
 ) {
-    context.hub75.set_panel_param(0, 0, 0, 0);
-    context.hub75.set_panel_param(0, 1, 0, 1);
-    context.hub75.set_panel_param(0, 2, 2, 0);
-    context.hub75.set_panel_param(0, 3, 2, 1);
+    context.hub75.set_panel_param(0, 0, 0, 0, 0);
+    context.hub75.set_panel_param(0, 1, 0, 1, 0);
+    context.hub75.set_panel_param(0, 2, 2, 0, 0);
+    context.hub75.set_panel_param(0, 3, 2, 1, 0);
 }
 
 fn check_flash(

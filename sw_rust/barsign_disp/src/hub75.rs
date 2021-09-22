@@ -97,7 +97,7 @@ impl Hub75 {
         }
     }
 
-    pub fn set_panel_param(&mut self, output: u8, chain_num: u8, x: u8, y: u8) {
+    pub fn set_panel_param(&mut self, output: u8, chain_num: u8, x: u8, y: u8, rot: u8) {
         if output >= OUTPUTS || chain_num >= CHAIN_LENGTH {
             return;
         }
@@ -106,12 +106,12 @@ impl Hub75 {
         let panel_adr = &self.hub75.panel0_0 as *const PANEL0_0;
         let panel_reg: &[PANEL0_0] =
             unsafe { core::slice::from_raw_parts(panel_adr, (OUTPUTS * CHAIN_LENGTH) as usize) };
-        unsafe { panel_reg[chain_offset].write(|w| w.x().bits(x).y().bits(y)) };
+        unsafe { panel_reg[chain_offset].write(|w| w.x().bits(x).y().bits(y).rot().bits(rot)) };
     }
 
-    pub fn get_panel_param(&mut self, output: u8, chain_num: u8) -> (u8, u8) {
+    pub fn get_panel_param(&mut self, output: u8, chain_num: u8) -> (u8, u8, u8) {
         if output >= OUTPUTS || chain_num >= CHAIN_LENGTH {
-            return (255, 255);
+            return (255, 255, 255);
         }
         use pac::hub75::PANEL0_0;
         let chain_offset = (output * CHAIN_LENGTH + chain_num) as usize;
@@ -119,7 +119,7 @@ impl Hub75 {
         let panel_reg: &[PANEL0_0] =
             unsafe { core::slice::from_raw_parts(panel_adr, (OUTPUTS * CHAIN_LENGTH) as usize) };
         let data = panel_reg[chain_offset].read();
-        (data.x().bits(), data.y().bits())
+        (data.x().bits(), data.y().bits(), data.rot().bits())
     }
 
     pub fn set_palette(&mut self, offset: u8, data: impl Iterator<Item = u32>) {

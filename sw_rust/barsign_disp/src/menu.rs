@@ -52,14 +52,6 @@ pub const ROOT_MENU: Menu<Context> = Menu {
         },
         &Item {
             item_type: ItemType::Callback {
-                function: out_test,
-                parameters: &[],
-            },
-            command: "out_test",
-            help: Some("Displays a pattern on screen"),
-        },
-        &Item {
-            item_type: ItemType::Callback {
                 function: default_image,
                 parameters: &[],
             },
@@ -185,14 +177,6 @@ pub const ROOT_MENU: Menu<Context> = Menu {
             command: "set_default_panel_params",
             help: Some("Sets the default panel parameters"),
         },
-        &Item {
-            item_type: ItemType::Callback {
-                function: check_flash,
-                parameters: &[],
-            },
-            command: "check_flash",
-            help: Some("Check if reading the flash work as expected"),
-        },
     ],
     entry: None,
     exit: None,
@@ -201,35 +185,6 @@ pub const ROOT_MENU: Menu<Context> = Menu {
 fn reboot(_menu: &Menu<Context>, _item: &Item<Context>, _args: &[&str], _context: &mut Context) {
     // Safe, because the soc is reset *now*
     unsafe { (*pac::CTRL::ptr()).reset.write(|w| w.soc_rst().set_bit()) };
-}
-
-fn out_test(_menu: &Menu<Context>, _item: &Item<Context>, _args: &[&str], context: &mut Context) {
-    let hub75 = &mut context.hub75;
-    let (width, length) = hub75.get_img_param();
-    let img_data = crate::img::write_image(
-        width,
-        length,
-        hub75.get_panel_params(),
-        hub75.read_img_data(),
-    )
-    .unwrap();
-    let mut size = 0;
-    for (byte_count, data) in img_data.enumerate() {
-        if crate::img::IMG_FILE[byte_count] != data {
-            write!(
-                context.output,
-                "Addr 0x{:x} and content 0x{:x} don't match\n",
-                byte_count, data
-            )
-            .unwrap();
-        }
-        size = byte_count + 1;
-    }
-    write!(context.output, "Size 0x{:x}", size).unwrap();
-    hub75.set_img_param(128, 128 * 128);
-    let data = [0xFF0000, 0x00FF00, 0x0000FF];
-    hub75.write_img_data(0, data.iter().cycle().take(128).map(|x| *x));
-    hub75.on();
 }
 
 fn default_image(
@@ -412,17 +367,4 @@ fn set_default_panel_params(
     context.hub75.set_panel_param(0, 1, 0, 1, 0);
     context.hub75.set_panel_param(0, 2, 2, 0, 0);
     context.hub75.set_panel_param(0, 3, 2, 1, 0);
-}
-
-fn check_flash(
-    _menu: &Menu<Context>,
-    _item: &Item<Context>,
-    _args: &[&str],
-    context: &mut Context,
-) {
-    if context.flash.memory_read_test() == true {
-        context.write_str("Flash reading seems to work!").unwrap();
-    } else {
-        context.write_str("Flash reading doesn't work!").unwrap();
-    }
 }

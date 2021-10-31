@@ -7,6 +7,7 @@ from migen import *
 def artnet_stream_description():
     payload_layout = [
         ("data", 32),
+        ("last_be", 4),
     ]
     return stream.EndpointDescription(payload_layout)
 
@@ -30,6 +31,7 @@ def artnet_stream_description():
 # - Count up for each color, adding it to offset in RAM and artnet universe * 170
 
 
+@ResetInserter()
 class RawDataStreamToColorStream(Module):
     def __init__(self):
         self.sink = sink = stream.Endpoint(artnet_stream_description())
@@ -44,6 +46,7 @@ class RawDataStreamToColorStream(Module):
         fsm.act(
             "0",
             source.data.eq(sink.data[0:24]),
+            source.last_be.eq(sink.data[0:3]),
             source.valid.eq(sink.valid),
             sink.ready.eq(source.ready),
             If(
@@ -54,6 +57,7 @@ class RawDataStreamToColorStream(Module):
         fsm.act(
             "1",
             source.data.eq(Cat(sink_d.data[24:], sink.data[0:16])),
+            source.last_be.eq(Cat(sink_d.last_be[3:], sink.last_be[0:2])),
             source.valid.eq(sink.valid),
             sink.ready.eq(source.ready),
             If(
@@ -64,6 +68,7 @@ class RawDataStreamToColorStream(Module):
         fsm.act(
             "2",
             source.data.eq(Cat(sink_d.data[16:], sink.data[0:8])),
+            source.last_be.eq(Cat(sink_d.last_be[2:], sink.last_be[0:1])),
             source.valid.eq(sink.valid),
             sink.ready.eq(source.ready),
             If(
@@ -74,6 +79,7 @@ class RawDataStreamToColorStream(Module):
         fsm.act(
             "3",
             source.data.eq(sink_d.data[8:]),
+            source.last_be.eq(sink_d.last_be[8:]),
             source.valid.eq(1),
             sink.ready.eq(0),
             If(
@@ -81,6 +87,11 @@ class RawDataStreamToColorStream(Module):
                 NextState("0"),
             ),
         )
+
+        self.comb += [
+            If(source.last_be != 0, source.last.eq(1)),
+        ]
+
         self.sync += [
             If(sink.ready & sink.valid, sink_d.eq(sink)),
         ]

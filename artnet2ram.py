@@ -196,7 +196,7 @@ class RawDataStreamToColorStream(Module):
 
 
 class TestStream(unittest.TestCase):
-    def pipe_test(self, dut):
+    def fourtothree_test(self, dut):
         prng = random.Random(42)
 
         def generator(dut, valid_rand=90):
@@ -232,6 +232,6 @@ class TestStream(unittest.TestCase):
         run_simulation(dut, [generator(dut), checker(dut)])
         self.assertEqual(dut.errors, 0)
 
-    def test_pipe_valid(self):
+    def test_fourtothree_valid(self):
         dut = RawDataStreamToColorStream()
-        self.pipe_test(dut)
+        self.fourtothree_test(dut)

@@ -2,8 +2,28 @@ import unittest
 import random
 from litex.soc.interconnect import stream
 from migen import *
+from litex.soc.interconnect.packet import Header, HeaderField
+from liteeth.packet import Depacketizer, Packetizer
 
-# PHY
+artnet_header_length = 18
+# TODO fix endian
+artnet_header_fields = {
+    "ident": HeaderField(0, 0, 8 * 8),
+    "op": HeaderField(8, 0, 2 * 8),
+    "protocol": HeaderField(10, 0, 2 * 8),
+    # Ignore this
+    "sequence": HeaderField(12, 0, 1 * 8),
+    # Not important
+    "phys": HeaderField(13, 0, 1 * 8),
+    "universee": HeaderField(14, 0, 2 * 8),
+    # Needs to be swapped around!!
+    "length": HeaderField(16, 0, 2 * 8),
+}
+artnet_header = Header(
+    artnet_header_fields, artnet_header_length, swap_field_bytes=True
+)
+
+
 def artnet_stream_description():
     payload_layout = [
         ("data", 32),
@@ -12,16 +32,74 @@ def artnet_stream_description():
     return stream.EndpointDescription(payload_layout)
 
 
-# class ArtnetDepacketizer(Module):
-#     foo
+def artnet_header_stream_description():
+    param_layout = artnet_header.get_layout()
+    payload_layout = [
+        ("data", 32),
+        ("last_be", 4),
+    ]
+    return stream.EndpointDescription(payload_layout, param_layout)
 
-# class ArtnetReceiver(Module):
+
+def artnet_write_description():
+    payload_layout = [
+        ("data", 32),
+        ("address", 32),
+    ]
+    return stream.EndpointDescription(payload_layout)
+
+
+class ArtnetDepacketizer(Depacketizer):
+    def __init__(self):
+        Depacketizer.__init__(
+            self,
+            artnet_stream_description(),
+            artnet_header_stream_description(),
+            artnet_header,
+        )
+
+
+# TODO make *sure* to not receive broadcasts!!!!
+class ArtnetReceiver(Module):
+    def __init__(self):
+        # Temporary, replace with udp description
+        self.sink = sink = stream.Endpoint(artnet_stream_description())
+        self.source = source = stream.Endpoint(artnet_write_description())
+        self.submodule.fsm = fsm = FSM(reset_state="IDLE")
+        self.submodule.data_converter = RawDataStreamToColorStream()
+        data_counter = Signal(max=170)
+        ram_offset = Signal(max=(8 * 4 * 32 * 64 - 170))
+        length = Signal(max=512)
+
+        fsm.act(
+            "IDLE",
+            NextValue(data_counter, 0),
+            self.data_converter.reset.eq(1),
+        )
+
+        fsm.act(
+            "WAIT_TILL_DONE",
+            # TODO
+        )
+        fsm.act(
+            "COPY_TO_RAM",
+            # TODO
+        )
+
+
 # State machine
 # Three states:
 # Idle
 # - Reset counter to 0
 # - If new packet received and metadata correct (header fields, universe), go to Copy to RAM
+#   - ram_offset = universe * 170
+#   - length = length
+#   - data_counter = 0
 # - If new packet received and metadata incorrect, go to Wait Until End
+#   - ident false
+#   - opcode false
+#   - universe to high
+#   - length > 510 (maybe also divisible by three? No, doable but a bit too complex)
 # Wait Until End:
 # - Read incoming data until last from packetizer, then jump to Idle
 # Cppy to RAM

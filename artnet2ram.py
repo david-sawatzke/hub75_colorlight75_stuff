@@ -5,6 +5,8 @@ from migen import *
 from litex.soc.interconnect.packet import Header, HeaderField
 from liteeth.packet import Depacketizer, Packetizer
 
+sdram_offset = 0x00400000 // 2 // 4
+
 artnet_header_length = 18
 # TODO fix endian
 artnet_header_fields = {
@@ -63,10 +65,17 @@ class ArtnetDepacketizer(Depacketizer):
 class ArtnetReceiver(Module):
     def __init__(self):
         # Temporary, replace with udp description
-        self.sink = sink = stream.Endpoint(artnet_stream_description())
+        self.sink = stream.Endpoint(artnet_stream_description())
         self.source = source = stream.Endpoint(artnet_write_description())
         self.submodule.fsm = fsm = FSM(reset_state="IDLE")
-        self.submodule.data_converter = RawDataStreamToColorStream()
+        self.submodule.data_converter = converter = RawDataStreamToColorStream()
+        self.submodule.depacketizer = ArtnetDepacketizer()
+        sink = stream.Endpoint(artnet_header_stream_description())
+        self.comb += [
+            self.sink.connect(self.depacketizer.sink),
+            self.depacketizer.source.connect(sink),
+        ]
+
         data_counter = Signal(max=170)
         ram_offset = Signal(max=(8 * 4 * 32 * 64 - 170))
         length = Signal(max=512)
@@ -74,16 +83,24 @@ class ArtnetReceiver(Module):
         fsm.act(
             "IDLE",
             NextValue(data_counter, 0),
-            self.data_converter.reset.eq(1),
+            converter.reset.eq(1),
         )
 
         fsm.act(
             "WAIT_TILL_DONE",
-            # TODO
+            sink.ready.eq(1),
+            If(sink.valid & sink.last, NextState("IDLE")),
         )
         fsm.act(
             "COPY_TO_RAM",
-            # TODO
+            sink.connect(converter.sink),
+            converter.source.connect(self.source, keep={"valid", "ready", "data"}),
+            self.source.address.eq(sdram_offset + ram_offset + data_counter),
+            If(
+                converter.source.valid & converter.source.ready,
+                NextValue(data_counter, data_counter + 1),
+                If(converter.source.last, NextState("IDLE")),
+            ),
         )
 
 

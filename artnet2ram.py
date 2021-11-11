@@ -3,12 +3,14 @@ import random
 from litex.soc.interconnect import stream
 from migen import *
 from litex.soc.interconnect.packet import Header, HeaderField
+from litex.gen.common import reverse_bytes
 from liteeth.packet import Depacketizer, Packetizer
 
+max_universe = (8 * 4 * 32 * 64) // 170 + 1
 sdram_offset = 0x00400000 // 2 // 4
 
 artnet_header_length = 18
-# TODO fix endian
+
 artnet_header_fields = {
     "ident": HeaderField(0, 0, 8 * 8),
     "op": HeaderField(8, 0, 2 * 8),
@@ -17,8 +19,8 @@ artnet_header_fields = {
     "sequence": HeaderField(12, 0, 1 * 8),
     # Not important
     "phys": HeaderField(13, 0, 1 * 8),
-    "universee": HeaderField(14, 0, 2 * 8),
-    # Needs to be swapped around!!
+    # Needs to be swapped around when reading the field
+    "universe": HeaderField(14, 0, 2 * 8),
     "length": HeaderField(16, 0, 2 * 8),
 }
 artnet_header = Header(
@@ -67,9 +69,9 @@ class ArtnetReceiver(Module):
         # Temporary, replace with udp description
         self.sink = stream.Endpoint(artnet_stream_description())
         self.source = source = stream.Endpoint(artnet_write_description())
-        self.submodule.fsm = fsm = FSM(reset_state="IDLE")
-        self.submodule.data_converter = converter = RawDataStreamToColorStream()
-        self.submodule.depacketizer = ArtnetDepacketizer()
+        self.submodules.fsm = fsm = FSM(reset_state="IDLE")
+        self.submodules.data_converter = converter = RawDataStreamToColorStream()
+        self.submodules.depacketizer = ArtnetDepacketizer()
         sink = stream.Endpoint(artnet_header_stream_description())
         self.comb += [
             self.sink.connect(self.depacketizer.sink),
@@ -78,12 +80,27 @@ class ArtnetReceiver(Module):
 
         data_counter = Signal(max=170)
         ram_offset = Signal(max=(8 * 4 * 32 * 64 - 170))
-        length = Signal(max=512)
+        # Currently unused
+        # length = Signal(max=512)
 
         fsm.act(
             "IDLE",
             NextValue(data_counter, 0),
             converter.reset.eq(1),
+            If(
+                sink.valid,
+                If(
+                    (sink.ident == int.from_bytes(b"Art-Net\0", byteorder="big"))
+                    & (sink.op == 0x0050)  # Wrong endian
+                    & (sink.length <= 510)
+                    & (reverse_bytes(sink.universe) < max_universe),
+                    NextValue(ram_offset, reverse_bytes(sink.universe) * 170),
+                    # NextValue(length, sink.length * 170),
+                    NextState("COPY_TO_RAM"),
+                ).Else(
+                    NextState("WAIT_TILL_DONE"),
+                ),
+            ),
         )
 
         fsm.act(
@@ -93,7 +110,9 @@ class ArtnetReceiver(Module):
         )
         fsm.act(
             "COPY_TO_RAM",
-            sink.connect(converter.sink),
+            sink.connect(
+                converter.sink, keep={"valid", "ready", "data", "last", "last_be"}
+            ),
             converter.source.connect(self.source, keep={"valid", "ready", "data"}),
             self.source.address.eq(sdram_offset + ram_offset + data_counter),
             If(
@@ -102,28 +121,6 @@ class ArtnetReceiver(Module):
                 If(converter.source.last, NextState("IDLE")),
             ),
         )
-
-
-# State machine
-# Three states:
-# Idle
-# - Reset counter to 0
-# - If new packet received and metadata correct (header fields, universe), go to Copy to RAM
-#   - ram_offset = universe * 170
-#   - length = length
-#   - data_counter = 0
-# - If new packet received and metadata incorrect, go to Wait Until End
-#   - ident false
-#   - opcode false
-#   - universe to high
-#   - length > 510 (maybe also divisible by three? No, doable but a bit too complex)
-# Wait Until End:
-# - Read incoming data until last from packetizer, then jump to Idle
-# Cppy to RAM
-# - Directly connect depacketizer outupt to 32bitwordtocolor module
-# - After last on input, wait until last from 32bitwordtocolor module & copy to ram is  done,
-#   then go to idle
-# - Count up for each color, adding it to offset in RAM and artnet universe * 170
 
 
 @ResetInserter()
@@ -232,12 +229,12 @@ class TestStream(unittest.TestCase):
         run_simulation(dut, [generator(dut), checker(dut)])
         self.assertEqual(dut.errors, 0)
 
-    def test_fourtothree_valid(self):
+    def footest_fourtothree_valid(self):
         dut = RawDataStreamToColorStream()
         self.fourtothree_test(dut)
 
-    def test_artnetreceiver():
-        artnet_data = """
+    def test_artnetreceiver(self):
+        artnet_hex_data = """
             41 72 74 2d 4e 65
             74 00 00 50 00 0e 4b 00 0c 00 01 fe 00 00 00 00
             00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
@@ -271,10 +268,56 @@ class TestStream(unittest.TestCase):
             00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
             00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
             00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
-            00 00 00 00 00 00 00 00 00 00
+            00 00 00 00 00 00 00 DE EE ED
         """
         proto_ver = 14
         sequence = 75
         universe = 12
         length = 510
-        pass
+        artnet_data = bytearray.fromhex(artnet_hex_data)
+        artnet_data_length = length + 18
+
+        prng = random.Random(42)
+        # Hacky!!
+        def generator(dut, data, length, valid_rand=90):
+            for idx in range(0, length, 4):
+                yield dut.sink.valid.eq(1)
+                yield dut.sink.data.eq(
+                    data[idx]
+                    | (data[idx + 1] << 8)
+                    | (data[idx + 2] << 16)
+                    | (data[idx + 3] << 24)
+                )
+                yield
+                while (yield dut.sink.ready) == 0:
+                    yield
+                yield dut.sink.valid.eq(0)
+                while prng.randrange(100) < valid_rand:
+                    yield
+            print("Generator done")
+
+        def checker(dut, length, ready_rand=90):
+            for idx in range(0, length):
+                print(idx)
+                yield dut.source.ready.eq(0)
+                yield
+                while (yield dut.source.valid) == 0:
+                    yield
+                while prng.randrange(100) < ready_rand:
+                    yield
+                yield dut.source.ready.eq(1)
+                yield
+                # if (yield dut.source.data) != (
+                #     data | ((data + 1) << 8) | ((data + 2) << 16)
+                # ):
+                #     dut.errors += 1
+            yield
+            print("Receiver done")
+
+        dut = ArtnetReceiver()
+        run_simulation(
+            dut,
+            [generator(dut, artnet_data, artnet_data_length), checker(dut, 170)],
+            vcd_name="depacktest.vcd",
+        )
+        self.assertEqual(dut.errors, 0)

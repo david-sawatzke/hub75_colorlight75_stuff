@@ -5,6 +5,7 @@ from migen import *
 from litex.soc.interconnect.packet import Header, HeaderField
 from litex.gen.common import reverse_bytes
 from liteeth.packet import Depacketizer, Packetizer
+from litedram.frontend.dma import LiteDRAMDMAReader
 
 max_universe = (8 * 4 * 32 * 64) // 170 + 1
 sdram_offset = 0x00400000 // 2 // 4
@@ -47,8 +48,8 @@ def artnet_header_stream_description():
 
 def artnet_write_description():
     payload_layout = [
-        ("data", 32),
         ("address", 32),
+        ("data", 32),
     ]
     return stream.EndpointDescription(payload_layout)
 
@@ -121,6 +122,18 @@ class ArtnetReceiver(Module):
                 If(converter.source.last, NextState("IDLE")),
             ),
         )
+
+
+class Artnet2RAM(Module):
+    def __init__(self, sdram, udp):
+        write_port = sdram.crossbar.get_port(mode="write", data_width=32)
+        self.submodules.writer = LiteDRAMDMAReader(write_port, fifo_depth=512)
+        self.submodules.artnet_receiver = LiteDRAMDMAReader(write_port, fifo_depth=512)
+        udp_port = udp.crossbar.get_port(6454, dw=32, cd=cd)
+        self.comb += [
+            udp_port.source.connect(self.artnet_receiver.sink),
+            self.artnet_receiver.source.connect(self.writer.sink),
+        ]
 
 
 @ResetInserter()

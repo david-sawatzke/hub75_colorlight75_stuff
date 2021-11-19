@@ -5,7 +5,7 @@ from migen import *
 from litex.soc.interconnect.packet import Header, HeaderField
 from litex.gen.common import reverse_bytes
 from liteeth.packet import Depacketizer, Packetizer
-from litedram.frontend.dma import LiteDRAMDMAReader
+from litedram.frontend.dma import LiteDRAMDMAWriter
 
 max_universe = (8 * 4 * 32 * 64) // 170 + 1
 sdram_offset = 0x00400000 // 2 // 4
@@ -127,11 +127,13 @@ class ArtnetReceiver(Module):
 class Artnet2RAM(Module):
     def __init__(self, sdram, udp):
         write_port = sdram.crossbar.get_port(mode="write", data_width=32)
-        self.submodules.writer = LiteDRAMDMAReader(write_port, fifo_depth=512)
-        self.submodules.artnet_receiver = LiteDRAMDMAReader(write_port, fifo_depth=512)
-        udp_port = udp.crossbar.get_port(6454, dw=32, cd=cd)
+        self.submodules.writer = LiteDRAMDMAWriter(write_port, fifo_depth=512)
+        self.submodules.artnet_receiver = ArtnetReceiver()
+        udp_port = udp.crossbar.get_port(6454, dw=32)
         self.comb += [
-            udp_port.source.connect(self.artnet_receiver.sink),
+            udp_port.source.connect(
+                self.artnet_receiver.sink, keep=["data", "last_be"]
+            ),
             self.artnet_receiver.source.connect(self.writer.sink),
         ]
 
@@ -184,7 +186,7 @@ class RawDataStreamToColorStream(Module):
         fsm.act(
             "3",
             source.data.eq(sink_d.data[8:]),
-            source.last_be.eq(sink_d.last_be[8:]),
+            source.last_be.eq(sink_d.last_be[1:]),
             source.valid.eq(1),
             sink.ready.eq(0),
             If(

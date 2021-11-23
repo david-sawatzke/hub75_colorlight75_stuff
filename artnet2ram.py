@@ -132,7 +132,8 @@ class Artnet2RAM(Module):
         udp_port = udp.crossbar.get_port(6454, dw=32)
         self.comb += [
             udp_port.source.connect(
-                self.artnet_receiver.sink, keep=["data", "last_be"]
+                self.artnet_receiver.sink,
+                omit=["error", "src_port", "dst_port", "ip_address", "length"],
             ),
             self.artnet_receiver.source.connect(self.writer.sink),
         ]

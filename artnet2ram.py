@@ -3,6 +3,7 @@ import random
 from litex.soc.interconnect import stream
 from migen import *
 from litex.soc.interconnect.packet import Header, HeaderField
+from litex.soc.interconnect.stream import SyncFIFO
 from litex.gen.common import reverse_bytes
 from liteeth.packet import Depacketizer, Packetizer
 from litedram.frontend.dma import LiteDRAMDMAWriter
@@ -67,7 +68,6 @@ class ArtnetDepacketizer(Depacketizer):
 # TODO make *sure* to not receive broadcasts!!!!
 class ArtnetReceiver(Module):
     def __init__(self):
-        # Temporary, replace with udp description
         self.sink = stream.Endpoint(artnet_stream_description())
         self.source = source = stream.Endpoint(artnet_write_description())
         self.submodules.fsm = fsm = FSM(reset_state="IDLE")
@@ -127,15 +127,17 @@ class ArtnetReceiver(Module):
 class Artnet2RAM(Module):
     def __init__(self, sdram, udp):
         write_port = sdram.crossbar.get_port(mode="write", data_width=32)
-        self.submodules.writer = LiteDRAMDMAWriter(write_port, fifo_depth=512)
+        self.submodules.writer = LiteDRAMDMAWriter(write_port)
         self.submodules.artnet_receiver = ArtnetReceiver()
         udp_port = udp.crossbar.get_port(6454, dw=32)
+        # self.submodules.fifo = SyncFIFO(artnet_write_description(), 512)
         self.comb += [
             udp_port.source.connect(
                 self.artnet_receiver.sink,
-                omit=["error", "src_port", "dst_port", "ip_address", "length"],
+                keep=["data", "last_be", "valid", "ready", "last"],
             ),
             self.artnet_receiver.source.connect(self.writer.sink),
+            # self.writer.sink.connect(self.fifo.source),
         ]
 
 
@@ -154,7 +156,7 @@ class RawDataStreamToColorStream(Module):
         fsm.act(
             "0",
             source.data.eq(sink.data[0:24]),
-            source.last_be.eq(sink.data[0:3]),
+            source.last_be.eq(sink.last_be[0:3]),
             source.valid.eq(sink.valid),
             sink.ready.eq(source.ready),
             If(
@@ -245,11 +247,11 @@ class TestStream(unittest.TestCase):
         run_simulation(dut, [generator(dut), checker(dut)])
         self.assertEqual(dut.errors, 0)
 
-    def footest_fourtothree_valid(self):
+    def test_fourtothree_valid(self):
         dut = RawDataStreamToColorStream()
         self.fourtothree_test(dut)
 
-    def test_artnetreceiver(self):
+    def footest_artnetreceiver(self):
         artnet_hex_data = """
             41 72 74 2d 4e 65
             74 00 00 50 00 0e 4b 00 0c 00 01 fe 00 00 00 00

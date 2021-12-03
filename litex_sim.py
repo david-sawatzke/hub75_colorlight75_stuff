@@ -394,7 +394,7 @@ class SimSoC(SoCCore):
             )
             self.submodules.icmp = LiteEthICMP(self.ip, etherbone_ip_address, dw=32)
             self.submodules.udp = LiteEthUDP(self.ip, etherbone_ip_address, dw=32)
-            # self.submodules.artnet2ram = Artnet2RAM(self.sdram, self.udp)
+            self.submodules.artnet2ram = Artnet2RAM(self.sdram, self.udp)
             # Etherbone
             # self.submodules.etherbone = LiteEthEtherbone(
             #     self.udp, 1234, mode="master")

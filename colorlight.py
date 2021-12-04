@@ -38,6 +38,13 @@ from litedram.modules import M12L16161A
 from litedram.phy import GENSDRPHY, HalfRateGENSDRPHY
 
 from liteeth.phy.ecp5rgmii import LiteEthPHYRGMII
+from liteeth.mac import LiteEthMAC
+from liteeth.core.arp import LiteEthARP
+from liteeth.core.ip import LiteEthIP
+from liteeth.core.udp import LiteEthUDP
+from liteeth.core.icmp import LiteEthICMP
+from liteeth.core import LiteEthUDPIPCore
+from liteeth.common import *
 
 from litex.build.generic_platform import Subsignal, Pins, Misc, IOStandard
 
@@ -47,6 +54,8 @@ from litespi.phy.generic import LiteSPIPHY
 from litespi import LiteSPI
 
 import hub75
+
+from artnet2ram import Artnet2RAM
 
 import helper
 
@@ -211,19 +220,45 @@ class BaseSoC(SoCCore):
 
         # Ethernet / Etherbone ---------------------------------------------------------------------
         # Use phy0
-        self.submodules.ethphy = LiteEthPHYRGMII(
+        self.submodules.ethphy = phy = LiteEthPHYRGMII(
             clock_pads=self.platform.request("eth_clocks", 0),
             pads=self.platform.request("eth", 0),
             tx_delay=0e-9,
         )
 
-        self.add_ethernet(phy=self.ethphy)
+        etherbone_mac_address = 0x10e2d5000001
+        etherbone_ip_address = convert_ip("192.168.1.51")
+
+        self.submodules.ethmac = LiteEthMAC(phy=self.ethphy, dw=32,
+            interface  = "hybrid",
+            endianness = self.cpu.endianness,
+            hw_mac     = etherbone_mac_address,
+            with_sys_datapath = True)
+        # SoftCPU
+        self.add_memory_region("ethmac", self.mem_map.get("ethmac", None), 0x2000, type="io")
+        self.add_wb_slave(self.mem_regions["ethmac"].origin, self.ethmac.bus, 0x2000)
+        if self.irq.enabled:
+            self.irq.add("ethmac", use_loc_if_exists=True)
+        eth_rx_clk = getattr(phy, "crg", phy).cd_eth_rx.clk
+        eth_tx_clk = getattr(phy, "crg", phy).cd_eth_tx.clk
+        self.platform.add_period_constraint(eth_rx_clk, 1e9/phy.rx_clk_freq)
+        self.platform.add_period_constraint(eth_tx_clk, 1e9/phy.tx_clk_freq)
+        self.platform.add_false_path_constraints(self.crg.cd_sys.clk, eth_rx_clk, eth_tx_clk)
+        # HW ethernet
+        self.submodules.arp  = LiteEthARP(self.ethmac, etherbone_mac_address, etherbone_ip_address, sys_clk_freq, dw=32)
+        self.submodules.ip   = LiteEthIP(self.ethmac, etherbone_mac_address, etherbone_ip_address, self.arp.table, dw=32)
+        self.submodules.icmp = LiteEthICMP(self.ip, etherbone_ip_address, dw=32)
+        self.submodules.udp  = LiteEthUDP(self.ip, etherbone_ip_address, dw=32)
+        # self.add_ethernet(phy=self.ethphy)
         # self.add_ethip(self.ethphy)
         # self.add_etherbone(phy=self.ethphy)
+
+        self.submodules.artnet2ram = Artnet2RAM(self.sdram, self.udp)
 
         ## Reduce bios size
         # Disable memtest, it takes a bit and is thus annoying
         self.add_constant("SDRAM_TEST_DISABLE")
+
 
 # Build --------------------------------------------------------------------------------------------
 

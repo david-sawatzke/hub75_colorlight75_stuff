@@ -130,12 +130,13 @@ class Artnet2RAM(Module):
         self.submodules.writer = LiteDRAMDMAWriter(write_port)
         self.submodules.artnet_receiver = ArtnetReceiver()
         udp_port = udp.crossbar.get_port(6454, dw=32)
-        # self.submodules.fifo = SyncFIFO(artnet_write_description(), 512)
+        self.submodules.fifo = SyncFIFO(artnet_stream_description(), 512)
         self.comb += [
             udp_port.source.connect(
-                self.artnet_receiver.sink,
+                self.fifo.sink,
                 keep=["data", "last_be", "valid", "ready", "last"],
             ),
+            self.fifo.source.connect(self.artnet_receiver.sink),
             self.artnet_receiver.source.connect(self.writer.sink),
             # self.writer.sink.connect(self.fifo.source),
         ]

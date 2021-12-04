@@ -4,13 +4,13 @@
 import socket
 
 
-def prepare_artnet_packet():
-    universe = 0
-    color_data = [[0, 0, 0] for _ in range(5)]
+def prepare_artnet_packet(universe):
+    color_data = [[255, 000, 0] for _ in range(170)]
 
-    color_data[0] = [255, 255, 255]
-    color_data[1] = [127, 0, 0]
-    # color_data[1] = [0, 0, 0]
+    color_data[0] = [0, 255, 0]
+    color_data[1] = [0, 0, 255]
+    color_data[2] = [0, 255, 255]
+    color_data[universe] = [255, 255, 255]
     # color_data[2] = [0, 0, 0]
     # color_data[3] = [0, 0, 0]
     # color_data[4] = [0, 0, 0]
@@ -39,5 +39,6 @@ def send_udp_packet(data):
     sock.sendto(data, (destination, port))
 
 
-data = prepare_artnet_packet()
-send_udp_packet(data)
+for universe in range(13):
+    data = prepare_artnet_packet(universe)
+    send_udp_packet(data)

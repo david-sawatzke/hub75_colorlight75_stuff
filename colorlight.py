@@ -41,9 +41,6 @@ from liteeth.phy.ecp5rgmii import LiteEthPHYRGMII
 from liteeth.mac import LiteEthMAC
 from liteeth.core.arp import LiteEthARP
 from liteeth.core.ip import LiteEthIP
-from liteeth.core.udp import LiteEthUDP
-from liteeth.core.icmp import LiteEthICMP
-from liteeth.core import LiteEthUDPIPCore
 from liteeth.common import *
 
 from litex.build.generic_platform import Subsignal, Pins, Misc, IOStandard
@@ -247,11 +244,6 @@ class BaseSoC(SoCCore):
         # HW ethernet
         self.submodules.arp  = LiteEthARP(self.ethmac, etherbone_mac_address, etherbone_ip_address, sys_clk_freq, dw=32)
         self.submodules.ip   = LiteEthIP(self.ethmac, etherbone_mac_address, etherbone_ip_address, self.arp.table, dw=32)
-        self.submodules.icmp = LiteEthICMP(self.ip, etherbone_ip_address, dw=32)
-        # self.add_ethernet(phy=self.ethphy)
-        # self.add_ethip(self.ethphy)
-        # self.add_etherbone(phy=self.ethphy)
-
         self.submodules.artnet2ram = Artnet2RAM(self.sdram, self.ip)
 
         ## Reduce bios size

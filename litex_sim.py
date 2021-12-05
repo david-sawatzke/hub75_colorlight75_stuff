@@ -35,10 +35,6 @@ from liteeth.phy.gmii import LiteEthPHYGMII
 from liteeth.mac import LiteEthMAC
 from liteeth.core.arp import LiteEthARP
 from liteeth.core.ip import LiteEthIP
-from liteeth.core.udp import LiteEthUDP
-from liteeth.core.icmp import LiteEthICMP
-from liteeth.core import LiteEthUDPIPCore
-from liteeth.frontend.etherbone import LiteEthEtherbone
 from liteeth.common import *
 
 from litescope import LiteScopeAnalyzer
@@ -392,7 +388,6 @@ class SimSoC(SoCCore):
                 self.arp.table,
                 dw=32,
             )
-            self.submodules.icmp = LiteEthICMP(self.ip, etherbone_ip_address, dw=32)
             self.submodules.artnet2ram = Artnet2RAM(self.sdram, self.ip)
             # Etherbone
             # self.submodules.etherbone = LiteEthEtherbone(

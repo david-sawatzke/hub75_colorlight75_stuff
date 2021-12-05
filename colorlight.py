@@ -248,12 +248,11 @@ class BaseSoC(SoCCore):
         self.submodules.arp  = LiteEthARP(self.ethmac, etherbone_mac_address, etherbone_ip_address, sys_clk_freq, dw=32)
         self.submodules.ip   = LiteEthIP(self.ethmac, etherbone_mac_address, etherbone_ip_address, self.arp.table, dw=32)
         self.submodules.icmp = LiteEthICMP(self.ip, etherbone_ip_address, dw=32)
-        self.submodules.udp  = LiteEthUDP(self.ip, etherbone_ip_address, dw=32)
         # self.add_ethernet(phy=self.ethphy)
         # self.add_ethip(self.ethphy)
         # self.add_etherbone(phy=self.ethphy)
 
-        self.submodules.artnet2ram = Artnet2RAM(self.sdram, self.udp)
+        self.submodules.artnet2ram = Artnet2RAM(self.sdram, self.ip)
 
         ## Reduce bios size
         # Disable memtest, it takes a bit and is thus annoying

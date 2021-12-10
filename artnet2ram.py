@@ -7,7 +7,8 @@ from litex.soc.interconnect.stream import SyncFIFO
 from litex.gen.common import reverse_bytes
 from liteeth.packet import Depacketizer, Packetizer
 from litedram.frontend.dma import LiteDRAMDMAWriter
-from smoleth import SmolEthUDP
+from liteeth.common import udp_protocol
+from smoleth import SmolEthUDP, SmolEthIP
 
 max_universe = (8 * 4 * 32 * 64) // 170 + 1
 sdram_offset = 0x00400000 // 2 // 4
@@ -126,11 +127,12 @@ class ArtnetReceiver(Module):
 
 
 class Artnet2RAM(Module):
-    def __init__(self, sdram, ip):
+    def __init__(self, sdram, mac, ip_address):
         write_port = sdram.crossbar.get_port(mode="write", data_width=32)
         self.submodules.writer = LiteDRAMDMAWriter(write_port)
         self.submodules.artnet_receiver = ArtnetReceiver()
-        self.submodules.udp_receiver = SmolEthUDP(ip, 6454, dw=32)
+        self.submodules.ip = SmolEthIP(mac, ip_address, udp_protocol, dw=32)
+        self.submodules.udp_receiver = SmolEthUDP(self.ip, 6454, dw=32)
         self.submodules.fifo = SyncFIFO(artnet_stream_description(), 512)
         self.comb += [
             self.udp_receiver.source.connect(

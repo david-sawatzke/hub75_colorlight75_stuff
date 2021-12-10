@@ -242,9 +242,7 @@ class BaseSoC(SoCCore):
         self.platform.add_period_constraint(eth_tx_clk, 1e9/phy.tx_clk_freq)
         self.platform.add_false_path_constraints(self.crg.cd_sys.clk, eth_rx_clk, eth_tx_clk)
         # HW ethernet
-        self.submodules.arp  = LiteEthARP(self.ethmac, etherbone_mac_address, etherbone_ip_address, sys_clk_freq, dw=32)
-        self.submodules.ip   = LiteEthIP(self.ethmac, etherbone_mac_address, etherbone_ip_address, self.arp.table, dw=32)
-        self.submodules.artnet2ram = Artnet2RAM(self.sdram, self.ip)
+        self.submodules.artnet2ram = Artnet2RAM(self.sdram, self.ethmac, etherbone_ip_address)
 
         ## Reduce bios size
         # Disable memtest, it takes a bit and is thus annoying

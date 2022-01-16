@@ -156,7 +156,7 @@ fn main() -> ! {
                         // Palette is set via the two *last* universes
                         let palette_offset = ((1 << 16) - 2) * 170;
                         if offset < palette_offset {
-                            r.context.hub75.write_img_data(offset, data);
+                            // r.context.hub75.write_img_data(offset, data);
                         } else {
                             r.context
                                 .hub75

@@ -2,6 +2,7 @@
 # Hacky test script to generate individual packets
 
 import socket
+import time
 
 
 def prepare_artnet_packet(universe):
@@ -32,7 +33,7 @@ def prepare_artnet_packet(universe):
 
 
 def send_udp_packet(data):
-    destination = "192.168.1.51"
+    destination = "192.168.1.50"
     # destination = "127.0.0.1"
     port = 6454
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)  # UDP
@@ -42,3 +43,4 @@ def send_udp_packet(data):
 for universe in range(13):
     data = prepare_artnet_packet(universe)
     send_udp_packet(data)
+    time.sleep(1)

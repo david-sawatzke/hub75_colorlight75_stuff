@@ -7,8 +7,7 @@ from litex.soc.interconnect.stream import SyncFIFO
 from litex.gen.common import reverse_bytes
 from liteeth.packet import Depacketizer, Packetizer
 from litedram.frontend.dma import LiteDRAMDMAWriter
-from liteeth.common import udp_protocol
-from smoleth import SmolEthUDP, SmolEthIP
+from liteeth.common import eth_udp_user_description
 
 max_universe = (8 * 4 * 32 * 64) // 170 + 1
 sdram_offset = 0x00400000 // 2 // 4
@@ -127,21 +126,19 @@ class ArtnetReceiver(Module):
 
 
 class Artnet2RAM(Module):
-    def __init__(self, sdram, mac, ip_address):
+    def __init__(self, sdram):
         write_port = sdram.crossbar.get_port(mode="write", data_width=32)
+        self.sink = stream.Endpoint(eth_udp_user_description(32))
         self.submodules.writer = LiteDRAMDMAWriter(write_port)
         self.submodules.artnet_receiver = ArtnetReceiver()
-        self.submodules.ip = SmolEthIP(mac, ip_address, udp_protocol, dw=32)
-        self.submodules.udp_receiver = SmolEthUDP(self.ip, 6454, dw=32)
         self.submodules.fifo = SyncFIFO(artnet_stream_description(), 512)
         self.comb += [
-            self.udp_receiver.source.connect(
+            self.sink.connect(
                 self.fifo.sink,
                 keep=["data", "last_be", "valid", "ready", "last"],
             ),
             self.fifo.source.connect(self.artnet_receiver.sink),
             self.artnet_receiver.source.connect(self.writer.sink),
-            # self.writer.sink.connect(self.fifo.source),
         ]
 
 

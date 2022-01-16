@@ -50,6 +50,8 @@ from litespi.opcodes import SpiNorFlashOpCodes as Codes
 from litespi.phy.generic import LiteSPIPHY
 from litespi import LiteSPI
 
+from smoleth import SmolEth
+
 import hub75
 
 from artnet2ram import Artnet2RAM
@@ -200,13 +202,16 @@ class BaseSoC(SoCCore):
         port = self.sdram.crossbar.get_port()
 
         wb_sdram = wishbone.Interface()
-        self.bus.add_slave("main_ram_uncached", wb_sdram,
-            SoCRegion(origin=0x90000000, size=sdram_size, cached=False))
+        self.bus.add_slave(
+            "main_ram_uncached",
+            wb_sdram,
+            SoCRegion(origin=0x90000000, size=sdram_size, cached=False),
+        )
         self.submodules.wishbone_bridge = LiteDRAMWishbone2Native(
-            wishbone     = wb_sdram,
-            port         = port,
-            base_address = self.bus.regions["main_ram_uncached"].origin)
-
+            wishbone=wb_sdram,
+            port=port,
+            base_address=self.bus.regions["main_ram_uncached"].origin,
+        )
 
         # Add hub75 connectors
         platform.add_extension(helper.hub75_conn(platform))
@@ -223,26 +228,43 @@ class BaseSoC(SoCCore):
             tx_delay=0e-9,
         )
 
-        etherbone_mac_address = 0x10e2d5000001
-        etherbone_ip_address = convert_ip("192.168.1.51")
+        # etherbone_mac_address = 0x10E2D5000001
+        etherbone_mac_address = 0xF64874C8C483
+        etherbone_ip_address = convert_ip("192.168.1.50")
 
-        self.submodules.ethmac = LiteEthMAC(phy=self.ethphy, dw=32,
-            interface  = "hybrid",
-            endianness = self.cpu.endianness,
-            hw_mac     = etherbone_mac_address,
-            with_sys_datapath = True)
+        # Named this way for the bios to recognize it
+        self.submodules.ethmac = SmolEth(
+            phy=self.ethphy,
+            udp_port=6454,
+            mac_address=etherbone_mac_address,
+            ip_address=etherbone_ip_address,
+            dw=32,
+        )
+        # self.submodules.ethmac = LiteEthMAC(
+        #     phy=self.ethphy,
+        #     dw=32,
+        #     interface="hybrid",
+        #     endianness=self.cpu.endianness,
+        #     hw_mac=etherbone_mac_address,
+        #     with_sys_datapath=True,
+        # )
         # SoftCPU
-        self.add_memory_region("ethmac", self.mem_map.get("ethmac", None), 0x2000, type="io")
+        self.add_memory_region(
+            "ethmac", self.mem_map.get("ethmac", None), 0x2000, type="io"
+        )
         self.add_wb_slave(self.mem_regions["ethmac"].origin, self.ethmac.bus, 0x2000)
         if self.irq.enabled:
             self.irq.add("ethmac", use_loc_if_exists=True)
         eth_rx_clk = getattr(phy, "crg", phy).cd_eth_rx.clk
         eth_tx_clk = getattr(phy, "crg", phy).cd_eth_tx.clk
-        self.platform.add_period_constraint(eth_rx_clk, 1e9/phy.rx_clk_freq)
-        self.platform.add_period_constraint(eth_tx_clk, 1e9/phy.tx_clk_freq)
-        self.platform.add_false_path_constraints(self.crg.cd_sys.clk, eth_rx_clk, eth_tx_clk)
+        self.platform.add_period_constraint(eth_rx_clk, 1e9 / phy.rx_clk_freq)
+        self.platform.add_period_constraint(eth_tx_clk, 1e9 / phy.tx_clk_freq)
+        self.platform.add_false_path_constraints(
+            self.crg.cd_sys.clk, eth_rx_clk, eth_tx_clk
+        )
         # HW ethernet
-        self.submodules.artnet2ram = Artnet2RAM(self.sdram, self.ethmac, etherbone_ip_address)
+        self.submodules.artnet2ram = Artnet2RAM(self.sdram)
+        self.comb += [self.ethmac.udp.source.connect(self.artnet2ram.sink)]
 
         ## Reduce bios size
         # Disable memtest, it takes a bit and is thus annoying

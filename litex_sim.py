@@ -41,6 +41,7 @@ from litescope import LiteScopeAnalyzer
 
 import hub75
 from artnet2ram import Artnet2RAM
+from smoleth import SmolEth
 import helper
 
 # IOs ----------------------------------------------------------------------------------------------
@@ -356,13 +357,12 @@ class SimSoC(SoCCore):
             )
             self.add_csr("ethphy")
             # Ethernet MAC
-            self.submodules.ethmac = LiteEthMAC(
+            self.submodules.ethmac = SmolEth(
                 phy=self.ethphy,
+                udp_port=6454,
+                mac_address=etherbone_mac_address,
+                ip_address=etherbone_ip_address,
                 dw=32,
-                interface="hybrid",
-                endianness=self.cpu.endianness,
-                hw_mac=etherbone_mac_address,
-                with_sys_datapath=True,
             )
 
             # SoftCPU
@@ -374,21 +374,9 @@ class SimSoC(SoCCore):
             if self.irq.enabled:
                 self.irq.add("ethmac", use_loc_if_exists=True)
             # HW ethernet
-            self.submodules.arp = LiteEthARP(
-                self.ethmac,
-                etherbone_mac_address,
-                etherbone_ip_address,
-                sys_clk_freq,
-                dw=32,
-            )
-            self.submodules.ip = LiteEthIP(
-                self.ethmac,
-                etherbone_mac_address,
-                etherbone_ip_address,
-                self.arp.table,
-                dw=32,
-            )
-            self.submodules.artnet2ram = Artnet2RAM(self.sdram, self.ip)
+            self.submodules.artnet2ram = Artnet2RAM(self.sdram)
+            self.comb += [self.ethmac.udp.source.connect(self.artnet2ram.sink)]
+
             # Etherbone
             # self.submodules.etherbone = LiteEthEtherbone(
             #     self.udp, 1234, mode="master")

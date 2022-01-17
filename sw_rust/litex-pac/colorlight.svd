@@ -3,7 +3,7 @@
 <device schemaVersion="1.1" xmlns:xs="http://www.w3.org/2001/XMLSchema-instance" xs:noNamespaceSchemaLocation="CMSIS-SVD.xsd" >
     <vendor>litex</vendor>
     <name>SOC</name>
-    <description><![CDATA[Litex SoC 2021-09-21 23:32:29]]></description>
+    <description><![CDATA[Litex SoC 2022-01-16 17:32:24]]></description>
 
     <addressUnitBits>8</addressUnitBits>
     <width>32</width>
@@ -253,8 +253,8 @@ to the Wishbone/CSR bus are working correctly. The initial reset value of
                     <fields>
                         <field>
                             <name>sram_writer_length</name>
-                            <msb>31</msb>
-                            <bitRange>[31:0]</bitRange>
+                            <msb>10</msb>
+                            <bitRange>[10:0]</bitRange>
                             <lsb>0</lsb>
                         </field>
                     </fields>
@@ -462,13 +462,13 @@ register to disable individual events.]]></description>
                     </fields>
                 </register>
                 <register>
-                    <name>PREAMBLE_ERRORS</name>
+                    <name>RX_DATAPATH_PREAMBLE_ERRORS</name>
                     <addressOffset>0x003c</addressOffset>
                     <resetValue>0x00</resetValue>
                     <size>32</size>
                     <fields>
                         <field>
-                            <name>preamble_errors</name>
+                            <name>rx_datapath_preamble_errors</name>
                             <msb>31</msb>
                             <bitRange>[31:0]</bitRange>
                             <lsb>0</lsb>
@@ -476,13 +476,13 @@ register to disable individual events.]]></description>
                     </fields>
                 </register>
                 <register>
-                    <name>CRC_ERRORS</name>
+                    <name>RX_DATAPATH_CRC_ERRORS</name>
                     <addressOffset>0x0040</addressOffset>
                     <resetValue>0x00</resetValue>
                     <size>32</size>
                     <fields>
                         <field>
-                            <name>crc_errors</name>
+                            <name>rx_datapath_crc_errors</name>
                             <msb>31</msb>
                             <bitRange>[31:0]</bitRange>
                             <lsb>0</lsb>

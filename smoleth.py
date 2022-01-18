@@ -226,7 +226,10 @@ class SmolEth(Module, AutoCSR):
         self.submodules.mac_filter = SmolEthMACFilter(mac_address, dw)
 
         self.submodules.invalidator = SmolEthInvalidator(
-            60 // 4, eth_phy_description(dw)
+            # Minimum of words that are required for a packet processed by the hardware
+            # Avoids dropping the next packet in the first few words if the hardware has a bit of latency
+            60 // 4,
+            eth_phy_description(dw),
         )
         self.comb += [
             self.core.source.connect(self.splitter.sink),

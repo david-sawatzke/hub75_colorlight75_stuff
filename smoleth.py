@@ -224,25 +224,71 @@ class SmolEth(Module, AutoCSR):
         self.submodules.udp = SmolEthUDP(udp_port, dw)
         self.submodules.ip = SmolEthIP(ip_address, udp_protocol, dw)
         self.submodules.mac_filter = SmolEthMACFilter(mac_address, dw)
-        # TODO error inserter
 
+        self.submodules.invalidator = SmolEthInvalidator(
+            60 // 4, eth_phy_description(dw)
+        )
         self.comb += [
             self.core.source.connect(self.splitter.sink),
             self.interface.source.connect(self.core.sink),
-            self.splitter.source1.connect(self.interface.sink),
+            self.splitter.source1.connect(self.invalidator.sink),
             self.splitter.source2.connect(self.mac_filter.sink),
             self.mac_filter.source.connect(self.ip.sink),
             self.ip.source.connect(self.udp.sink),
+            self.invalidator.source.connect(self.interface.sink),
         ]
 
     def get_csrs(self):
         return self.csrs
 
 
-# Packet Flow:
-#     +--> RAM
-# IN -+  <-- This part is (also) missing
-#     +--> Depacketizer -> IP (which implements filtering for ethernet_type)
+# Drops the current packet for the ram interface if it's processed by the hardware
+# length is the minimum length a packet has to be to be considered valid
+class SmolEthInvalidator(Module):
+    def __init__(self, length, description):
+        self.sink = sink = stream.Endpoint(description)
+        self.source = source = stream.Endpoint(description)
 
-# Also needs an error injecter if the ArtNet output is valid
-#
+        self.invalid = Signal()
+
+        length_counter = Signal(max=1500)
+
+        self.submodules.fsm = fsm = FSM(reset_state="IDLE")
+        fsm.act(
+            "IDLE",
+            NextValue(length_counter, 1),
+            self.sink.connect(self.source),
+            If(
+                sink.valid & sink.ready,
+                NextState("COPY"),
+            ),
+        )
+        fsm.act(
+            "COPY",
+            self.sink.connect(self.source),
+            If(
+                self.invalid & (length_counter > length),
+                NextState("INVALIDATE"),
+            ),
+            If(
+                self.sink.valid & self.sink.ready,
+                If(self.sink.last, NextState("IDLE")),
+                NextValue(length_counter, length_counter + 1),
+            ),
+        )
+        fsm.act(
+            "INVALIDATE",
+            self.source.error.eq(0xFF),
+            self.source.last_be.eq(0x01),
+            self.source.last.eq(1),
+            self.source.valid.eq(1),
+            # Discard the incoming bytes
+            # With the normal interface this isn't an issue since it's always ready
+            self.sink.ready.eq(~(self.sink.last & self.sink.valid)),
+            If(self.source.ready, NextState("WAIT_TILL_DONE")),
+        )
+        fsm.act(
+            "WAIT_TILL_DONE",
+            self.sink.ready.eq(1),
+            If(self.sink.valid & self.sink.last, NextState("IDLE")),
+        )

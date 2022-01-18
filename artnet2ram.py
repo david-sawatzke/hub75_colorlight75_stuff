@@ -80,6 +80,7 @@ class ArtnetReceiver(Module):
             self.depacketizer.source.connect(sink),
         ]
 
+        self.valid_packet = Signal()
         data_counter = Signal(max=170)
         ram_offset = Signal(max=(8 * 4 * 32 * 64 - 170))
         # Currently unused
@@ -96,6 +97,7 @@ class ArtnetReceiver(Module):
                     & (sink.op == 0x0050)  # Wrong endian
                     & (sink.length <= 510)
                     & (reverse_bytes(sink.universe) < max_universe),
+                    self.valid_packet.eq(1),
                     NextValue(ram_offset, reverse_bytes(sink.universe) * 170),
                     # NextValue(length, sink.length * 170),
                     NextState("COPY_TO_RAM"),

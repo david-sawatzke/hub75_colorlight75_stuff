@@ -266,6 +266,11 @@ class BaseSoC(SoCCore):
         self.submodules.artnet2ram = Artnet2RAM(self.sdram)
         self.comb += [self.ethmac.udp.source.connect(self.artnet2ram.sink)]
 
+        self.comb += [
+            self.ethmac.invalidator.invalid.eq(
+                self.artnet2ram.artnet_receiver.valid_packet
+            )
+        ]
         ## Reduce bios size
         # Disable memtest, it takes a bit and is thus annoying
         self.add_constant("SDRAM_TEST_DISABLE")

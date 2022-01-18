@@ -1,4 +1,19 @@
-#!/usr/bin/env python3
+# Smol tcp ethernet stack
+# Intended for a hybrid stack, where a lot of udp traffic is received and processed by gateware, while all other ethernet tasks are handled using the softcore
+# Only the softcore can send data
+# Benefits:
+# - Uses less resources than LiteETH (less features)
+# - Can share a single IP
+# Disadvantages:
+# - Only supports a single IP & UDP port for hardware processing
+# - Hardware receiving circuitry needs to signal packets that shouldn't be received by the
+#   softcore and some leftovers may still be received by the softcore
+# - Needs a functioning software ethernet stack to provide ARP at least
+# - Less configurable
+# - No etherbone
+# License: Same one as LiteETH (two clause BSD)
+# 2021-2022 <d-smoleth@sawatzke.dev>
+# SPDX-License-Identifier: BSD-2-Clause
 from liteeth.common import *
 from liteeth.core.udp import LiteEthUDPDepacketizer
 from liteeth.core.ip import LiteEthIPV4Depacketizer

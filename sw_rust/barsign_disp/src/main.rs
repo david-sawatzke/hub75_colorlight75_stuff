@@ -2,7 +2,6 @@
 #![no_main]
 
 use core::fmt::Write as _;
-use panic_halt as _;
 
 use barsign_disp::*;
 use embedded_hal::blocking::delay::DelayMs;

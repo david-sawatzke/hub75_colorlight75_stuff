@@ -101,7 +101,6 @@ dependencies = [
  "litex-pac",
  "menu",
  "nb 1.0.0",
- "panic-halt",
  "riscv",
  "riscv-rt",
  "smoltcp",
@@ -357,12 +356,6 @@ checksum = "a38f2be3697a57b4060074ff41b44c16870d916ad7877c17696e063257482bc7"
 dependencies = [
  "memchr",
 ]
-
-[[package]]
-name = "panic-halt"
-version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "de96540e0ebde571dc55c73d60ef407c653844e6f9a1e2fdbd40c07b9252d812"
 
 [[package]]
 name = "proc-macro2"

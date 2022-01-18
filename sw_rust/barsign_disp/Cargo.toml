@@ -7,7 +7,6 @@ edition = "2018"
 [dependencies]
 litex-pac = { path = "../litex-pac", features = ["rt"]}
 riscv-rt = "0.8.0"
-panic-halt = "0.2"
 litex-hal = {git = "https://github.com/david-sawatzke/rust-litex-hal", rev="cd9e00b678a42eacc72b055946b3ae08a76ad85f"}
 embedded-hal = {version = "0.2.4", features = ["unproven"]}
 spi-memory = "0.2.0"

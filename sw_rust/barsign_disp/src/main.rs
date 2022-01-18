@@ -97,7 +97,9 @@ fn main() -> ! {
         {
             let mut socket = sockets.get::<TcpSocket>(tcp_server_handle);
             if !socket.is_open() {
-                socket.listen(23).unwrap();
+                if socket.listen(23).is_err() {
+                    writeln!(r.context.output.serial, "Couldn't listen to telnet port");
+                }
             }
             if !telnet_active & socket.is_active() {
                 r.context.output.out_data.clear();
@@ -147,7 +149,9 @@ fn main() -> ! {
         {
             let mut socket = sockets.get::<UdpSocket>(udp_server_handle);
             if !socket.is_open() {
-                socket.bind(6454).unwrap()
+                if !socket.bind(6454).is_ok() {
+                    writeln!(r.context.output.serial, "Couldn't open artnet port");
+                }
             }
 
             match socket.recv() {

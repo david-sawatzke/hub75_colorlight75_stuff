@@ -9,6 +9,8 @@ use litex_pac as pac;
 fn panic(info: &PanicInfo) -> ! {
     let mut writer = PanicWriter {};
     writeln!(writer, "{}", info).ok();
+    // And reboot!
+    unsafe { (*pac::CTRL::ptr()).reset.write(|w| w.soc_rst().set_bit()) };
     loop {}
 }
 

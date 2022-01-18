@@ -76,20 +76,13 @@ impl<'a> phy::RxToken for EthRxToken<'a> {
             }
             let slot = self.ethmac.sram_writer_slot.read().bits();
             let length = self.ethmac.sram_writer_length.read().bits();
-            let result = match slot {
-                0 => {
-                    let buf = (&self.ethbuf.rx_buffer_0) as *const _ as *const u8 as *mut u8;
-                    let data = core::slice::from_raw_parts_mut(buf, length as usize);
-                    f(data)
-                }
-                1 => {
-                    let buf = (&self.ethbuf.rx_buffer_1) as *const _ as *const u8 as *mut u8;
-                    let data = core::slice::from_raw_parts_mut(buf, length as usize);
-                    f(data)
-                }
+            let buf = match slot {
+                0 => (&self.ethbuf.rx_buffer_0) as *const _ as *const u8 as *mut u8,
+                1 => (&self.ethbuf.rx_buffer_1) as *const _ as *const u8 as *mut u8,
                 _ => return Err(Error::Exhausted),
             };
-
+            let data = core::slice::from_raw_parts_mut(buf, length as usize);
+            let result = f(data);
             self.ethmac.sram_writer_ev_pending.write(|w| w.bits(1));
             result
         }

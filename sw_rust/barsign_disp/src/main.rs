@@ -13,10 +13,8 @@ use heapless::Vec;
 use litex_pac as pac;
 use nb::block;
 use riscv_rt::entry;
-use smoltcp::iface::{EthernetInterfaceBuilder, NeighborCache};
-use smoltcp::socket::{
-    SocketSet, TcpSocket, TcpSocketBuffer, UdpPacketMetadata, UdpSocket, UdpSocketBuffer,
-};
+use smoltcp::iface::{InterfaceBuilder, NeighborCache};
+use smoltcp::socket::{TcpSocket, TcpSocketBuffer, UdpPacketMetadata, UdpSocket, UdpSocketBuffer};
 use smoltcp::time::{Duration, Instant};
 use smoltcp::wire::{EthernetAddress, IpAddress, IpCidr};
 
@@ -50,10 +48,9 @@ fn main() -> ! {
     let mut neighbor_cache_entries = [None; 8];
     let neighbor_cache = NeighborCache::new(&mut neighbor_cache_entries[..]);
     let mut ip_addrs = [IpCidr::new(IpAddress::v4(192, 168, 1, 50), 24)];
-    let mut iface = EthernetInterfaceBuilder::new(device)
-        .ethernet_addr(EthernetAddress::from_bytes(&[
-            0xF6, 0x48, 0x74, 0xC8, 0xC4, 0x83,
-        ]))
+    let mut sockets_entries: [_; 2] = Default::default();
+    let mut iface = InterfaceBuilder::new(device, &mut sockets_entries[..])
+        .hardware_addr(EthernetAddress::from_bytes(&[0xF6, 0x48, 0x74, 0xC8, 0xC4, 0x83]).into())
         .neighbor_cache(neighbor_cache)
         .ip_addrs(&mut ip_addrs[..])
         .finalize();
@@ -79,22 +76,21 @@ fn main() -> ! {
         };
         UdpSocket::new(udp_rx_buffer, udp_tx_buffer)
     };
-    let mut sockets_entries: [_; 2] = Default::default();
-    let mut sockets = SocketSet::new(&mut sockets_entries[..]);
-    let tcp_server_handle = sockets.add(tcp_server_socket);
-    let udp_server_handle = sockets.add(udp_server_socket);
+
+    let tcp_server_handle = iface.add_socket(tcp_server_socket);
+    let udp_server_handle = iface.add_socket(udp_server_socket);
 
     let mut time = Instant::from_millis(0);
     let mut telnet_active = false;
     loop {
-        match iface.poll(&mut sockets, time) {
+        match iface.poll(time) {
             Ok(_) => {}
             Err(_) => {}
         }
 
         // tcp:23: telnet for menu
         {
-            let mut socket = sockets.get::<TcpSocket>(tcp_server_handle);
+            let mut socket = iface.get_socket::<TcpSocket>(tcp_server_handle);
             if !socket.is_open() {
                 if socket.listen(23).is_err() {
                     writeln!(r.context.output.serial, "Couldn't listen to telnet port");
@@ -146,7 +142,7 @@ fn main() -> ! {
         }
         // udp:6454: artnet
         {
-            let mut socket = sockets.get::<UdpSocket>(udp_server_handle);
+            let mut socket = iface.get_socket::<UdpSocket>(udp_server_handle);
             if !socket.is_open() {
                 if !socket.bind(6454).is_ok() {
                     writeln!(r.context.output.serial, "Couldn't open artnet port");

@@ -68,9 +68,3 @@ $ picocom -b 115200 /dev/ttyUSB1 --imap lfcrlf
 ## Pitfalls I ran into
 1. `and` is silently dropped, maybe use `&` instead
 
-
-## TEMP Add static arp entry
-
-``` sh
- sudo arp -s 192.168.1.51 10:e2:d5:00:00:01
-```

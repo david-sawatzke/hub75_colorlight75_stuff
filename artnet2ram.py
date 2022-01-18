@@ -131,14 +131,18 @@ class Artnet2RAM(Module):
         self.sink = stream.Endpoint(eth_udp_user_description(32))
         self.submodules.writer = LiteDRAMDMAWriter(write_port)
         self.submodules.artnet_receiver = ArtnetReceiver()
-        self.submodules.fifo = SyncFIFO(artnet_stream_description(), 512)
+        self.submodules.fifo = SyncFIFO(artnet_write_description(), 512)
         self.comb += [
             self.sink.connect(
-                self.fifo.sink,
+                self.artnet_receiver.sink,
                 keep=["data", "last_be", "valid", "ready", "last"],
             ),
-            self.fifo.source.connect(self.artnet_receiver.sink),
-            self.artnet_receiver.source.connect(self.writer.sink),
+            self.artnet_receiver.source.connect(self.fifo.sink, omit=["ready"]),
+            self.fifo.source.connect(
+                self.writer.sink,
+            ),
+            # TODO indicate if this happens somehow Just drop data if the fifo is full
+            self.artnet_receiver.source.ready.eq(1),
         ]
 
 

@@ -66,7 +66,6 @@ class ArtnetDepacketizer(Depacketizer):
         )
 
 
-# TODO make *sure* to not receive broadcasts!!!!
 class ArtnetReceiver(Module):
     def __init__(self):
         self.sink = stream.Endpoint(artnet_stream_description())

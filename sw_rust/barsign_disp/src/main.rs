@@ -1,6 +1,7 @@
 #![no_std]
 #![no_main]
 
+use core::convert::TryInto;
 use core::fmt::Write as _;
 
 use barsign_disp::*;
@@ -55,8 +56,13 @@ fn main() -> ! {
         .mac_address0
         .write(|w| unsafe { w.bits((mac_be & 0xFFFFFFFF) as u32) });
 
-    let ip_address = IpAddress::v4(192, 168, 1, 50);
+    let ip_address = IpAddress::v4(192, 168, 1, 49);
 
+    peripherals.ETHMAC.ip_address.write(|w| unsafe {
+        w.bits(u32::from_be_bytes(
+            ip_address.as_bytes().try_into().unwrap(),
+        ))
+    });
     let device = Eth::new(peripherals.ETHMAC, peripherals.ETHMEM);
     let mut neighbor_cache_entries = [None; 8];
     let neighbor_cache = NeighborCache::new(&mut neighbor_cache_entries[..]);

@@ -206,7 +206,8 @@ class SmolEthStreamSplitter(Module):
 class SmolEth(Module, AutoCSR):
     def __init__(self, phy, udp_port, mac_address, ip_address, dw):
         assert dw % 8 == 0
-        # Add mac register
+        # Add mac & ip registers
+        self.ip_address = CSRStorage(32, reset=ip_address, atomic_write=True)
         self.mac_address = CSRStorage(48, reset=mac_address, atomic_write=True)
 
         self.submodules.core = LiteEthMACCore(
@@ -235,14 +236,16 @@ class SmolEth(Module, AutoCSR):
         self.ev, self.bus = self.interface.sram.ev, self.interface.bus
         # Use this instead of AutoCSR to maintain the same names as in liteeth
         self.csrs = (
-            self.interface.get_csrs() + self.core.get_csrs() + [self.mac_address]
+            self.interface.get_csrs()
+            + self.core.get_csrs()
+            + [self.ip_address, self.mac_address]
         )
 
         self.submodules.splitter = SmolEthStreamSplitter(eth_phy_description(dw))
 
         # Hardware UDP/IP "Stack"
         self.submodules.udp = SmolEthUDP(udp_port, dw)
-        self.submodules.ip = SmolEthIP(ip_address, udp_protocol, dw)
+        self.submodules.ip = SmolEthIP(self.ip_address.storage, udp_protocol, dw)
         self.submodules.mac_filter = SmolEthMACFilter(self.mac_address.storage, dw)
 
         self.submodules.invalidator = SmolEthInvalidator(

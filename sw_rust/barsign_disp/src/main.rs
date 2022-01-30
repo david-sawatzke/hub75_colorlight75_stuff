@@ -44,13 +44,29 @@ fn main() -> ! {
     };
     let mut r = menu::Runner::new(&menu::ROOT_MENU, &mut buffer, context);
 
+    let mac_address = [0xF6, 0x48, 0x74, 0xC8, 0xC4, 0x83];
+    let ip_address = IpAddress::v4(192, 168, 1, 50);
+
+    let mut mac_be: u64 = 0;
+    for byte in mac_address {
+        mac_be = (mac_be << 8) | byte as u64;
+    }
+    peripherals
+        .ETHMAC
+        .mac_address1
+        .write(|w| unsafe { w.bits((mac_be >> 32) as u32) });
+    peripherals
+        .ETHMAC
+        .mac_address0
+        .write(|w| unsafe { w.bits((mac_be & 0xFFFFFFFF) as u32) });
+
     let device = Eth::new(peripherals.ETHMAC, peripherals.ETHMEM);
     let mut neighbor_cache_entries = [None; 8];
     let neighbor_cache = NeighborCache::new(&mut neighbor_cache_entries[..]);
-    let mut ip_addrs = [IpCidr::new(IpAddress::v4(192, 168, 1, 50), 24)];
+    let mut ip_addrs = [IpCidr::new(ip_address, 24)];
     let mut sockets_entries: [_; 2] = Default::default();
     let mut iface = InterfaceBuilder::new(device, &mut sockets_entries[..])
-        .hardware_addr(EthernetAddress::from_bytes(&[0xF6, 0x48, 0x74, 0xC8, 0xC4, 0x83]).into())
+        .hardware_addr(EthernetAddress::from_bytes(&mac_address).into())
         .neighbor_cache(neighbor_cache)
         .ip_addrs(&mut ip_addrs[..])
         .finalize();

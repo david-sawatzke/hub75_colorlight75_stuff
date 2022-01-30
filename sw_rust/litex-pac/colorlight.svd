@@ -3,7 +3,7 @@
 <device schemaVersion="1.1" xmlns:xs="http://www.w3.org/2001/XMLSchema-instance" xs:noNamespaceSchemaLocation="CMSIS-SVD.xsd" >
     <vendor>litex</vendor>
     <name>SOC</name>
-    <description><![CDATA[Litex SoC 2022-01-16 17:32:24]]></description>
+    <description><![CDATA[Litex SoC 2022-01-30 18:39:35]]></description>
 
     <addressUnitBits>8</addressUnitBits>
     <width>32</width>
@@ -489,10 +489,42 @@ register to disable individual events.]]></description>
                         </field>
                     </fields>
                 </register>
+                <register>
+                    <name>MAC_ADDRESS1</name>
+                    <description><![CDATA[Bits 32-47 of `ETHMAC_MAC_ADDRESS`. The value won't take effect until
+`ETHMAC_MAC_ADDRESS0` is written.]]></description>
+                    <addressOffset>0x0044</addressOffset>
+                    <resetValue>0x7648</resetValue>
+                    <size>32</size>
+                    <fields>
+                        <field>
+                            <name>mac_address</name>
+                            <msb>31</msb>
+                            <bitRange>[31:0]</bitRange>
+                            <lsb>0</lsb>
+                        </field>
+                    </fields>
+                </register>
+                <register>
+                    <name>MAC_ADDRESS0</name>
+                    <description><![CDATA[Bits 0-31 of `ETHMAC_MAC_ADDRESS`. Writing this register triggers an update of
+`ETHMAC_MAC_ADDRESS`.]]></description>
+                    <addressOffset>0x0048</addressOffset>
+                    <resetValue>0x74c8c483</resetValue>
+                    <size>32</size>
+                    <fields>
+                        <field>
+                            <name>mac_address</name>
+                            <msb>31</msb>
+                            <bitRange>[31:0]</bitRange>
+                            <lsb>0</lsb>
+                        </field>
+                    </fields>
+                </register>
             </registers>
             <addressBlock>
                 <offset>0</offset>
-                <size>0x44</size>
+                <size>0x4c</size>
                 <usage>registers</usage>
             </addressBlock>
             <interrupt>

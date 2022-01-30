@@ -240,14 +240,6 @@ class BaseSoC(SoCCore):
             ip_address=etherbone_ip_address,
             dw=32,
         )
-        # self.submodules.ethmac = LiteEthMAC(
-        #     phy=self.ethphy,
-        #     dw=32,
-        #     interface="hybrid",
-        #     endianness=self.cpu.endianness,
-        #     hw_mac=etherbone_mac_address,
-        #     with_sys_datapath=True,
-        # )
         # SoftCPU
         self.add_memory_region(
             "ethmac", self.mem_map.get("ethmac", None), 0x2000, type="io"

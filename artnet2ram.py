@@ -128,11 +128,16 @@ class ArtnetReceiver(Module):
 
 class Artnet2RAM(Module):
     def __init__(self, sdram):
-        write_port = sdram.crossbar.get_port(mode="write", data_width=32)
+        # Interface
         self.sink = stream.Endpoint(eth_udp_user_description(32))
+        # The packet received via the sink is valid (can be used to drop processing of the packet in other parts
+        self.valid_packet = Signal()
+
+        write_port = sdram.crossbar.get_port(mode="write", data_width=32)
         self.submodules.writer = LiteDRAMDMAWriter(write_port)
         self.submodules.artnet_receiver = ArtnetReceiver()
         self.submodules.fifo = SyncFIFO(artnet_write_description(), 512)
+
         self.comb += [
             self.sink.connect(
                 self.artnet_receiver.sink,
@@ -144,6 +149,7 @@ class Artnet2RAM(Module):
             ),
             # TODO indicate if this happens somehow Just drop data if the fifo is full
             self.artnet_receiver.source.ready.eq(1),
+            self.valid_packet.eq(self.artnet_receiver.valid_packet),
         ]
 
 

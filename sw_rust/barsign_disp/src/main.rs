@@ -44,13 +44,8 @@ fn main() -> ! {
     };
     let mut r = menu::Runner::new(&menu::ROOT_MENU, &mut buffer, context);
 
-    let mac_address = [0xF6, 0x48, 0x74, 0xC8, 0xC4, 0x83];
-    let ip_address = IpAddress::v4(192, 168, 1, 50);
+    let (mac_address, mac_be) = generate_mac(&[0xde, 0xad, 0xbe, 0xef]);
 
-    let mut mac_be: u64 = 0;
-    for byte in mac_address {
-        mac_be = (mac_be << 8) | byte as u64;
-    }
     peripherals
         .ETHMAC
         .mac_address1
@@ -59,6 +54,8 @@ fn main() -> ! {
         .ETHMAC
         .mac_address0
         .write(|w| unsafe { w.bits((mac_be & 0xFFFFFFFF) as u32) });
+
+    let ip_address = IpAddress::v4(192, 168, 1, 50);
 
     let device = Eth::new(peripherals.ETHMAC, peripherals.ETHMEM);
     let mut neighbor_cache_entries = [None; 8];

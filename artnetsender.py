@@ -5,8 +5,8 @@ import socket
 import time
 
 
-def prepare_artnet_packet(universe):
-    color_data = [[255, 000, 0] for _ in range(170)]
+def prepare_artnet_packet(universe, a):
+    color_data = [[255, 000, a] for _ in range(170)]
 
     color_data[0] = [0, 255, 0]
     color_data[1] = [0, 0, 255]
@@ -33,14 +33,17 @@ def prepare_artnet_packet(universe):
 
 
 def send_udp_packet(data):
-    destination = "192.168.1.50"
+    destination = "192.168.1.49"
     # destination = "127.0.0.1"
     port = 6454
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)  # UDP
     sock.sendto(data, (destination, port))
 
 
-for universe in range(13):
-    data = prepare_artnet_packet(universe)
-    send_udp_packet(data)
-    time.sleep(1)
+while True:
+    for a in range(255):
+        for universe in range(49):
+            color = a & 0x80
+            data = prepare_artnet_packet(universe, color)
+            send_udp_packet(data)
+            # time.sleep(0.1)

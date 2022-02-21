@@ -200,6 +200,8 @@ class RamToBufferReader(Module):
             chain_length_2=0,
     ):
         self.done = Signal()
+        # If ram bandwidth is needed for something else
+        self.prevent_read = Signal()
         done = Signal()
         # Eliminate the delay
         self.comb += self.done.eq(~start & done)
@@ -208,7 +210,7 @@ class RamToBufferReader(Module):
         # RAM Reader
         self.submodules.reader = LiteDRAMDMAReader(mem_read_port)
         self.submodules.ram_adr = RamAddressGenerator(
-            start, self.reader.sink.ready, row, image_width, panel_config,
+            start, self.reader.sink.ready & ~self.prevent_read, row, image_width, panel_config,
             collumns_2, chain_length_2)
 
         ram_valid = self.reader.source.valid
@@ -216,7 +218,7 @@ class RamToBufferReader(Module):
         ram_done = Signal()
         self.comb += [
             self.reader.sink.address.eq(self.ram_adr.adr),
-            self.reader.sink.valid.eq(self.ram_adr.valid),
+            self.reader.sink.valid.eq(self.ram_adr.valid & ~self.prevent_read),
             ram_done.eq((self.ram_adr.started == False)
                         & (self.reader.rsv_level == 0)
                         & (self.reader.source.valid == False))

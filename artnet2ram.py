@@ -130,6 +130,8 @@ class Artnet2RAM(Module):
     def __init__(self, sdram):
         # Interface
         self.sink = stream.Endpoint(eth_udp_user_description(32))
+        # If the fifo is (semi-)full, signal other parts to reduce memory bandwidth needs
+        self.fifo_backlog = Signal()
         # The packet received via the sink is valid (can be used to drop processing of the packet in other parts
         self.valid_packet = Signal()
 
@@ -150,6 +152,7 @@ class Artnet2RAM(Module):
             # TODO indicate if this happens somehow Just drop data if the fifo is full
             self.artnet_receiver.source.ready.eq(1),
             self.valid_packet.eq(self.artnet_receiver.valid_packet),
+            self.fifo_backlog.eq(self.fifo.level > 256),
         ]
 
 

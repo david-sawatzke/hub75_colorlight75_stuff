@@ -259,6 +259,11 @@ class BaseSoC(SoCCore):
         self.comb += [self.ethmac.udp.source.connect(self.artnet2ram.sink)]
 
         self.comb += [self.ethmac.invalidator.invalid.eq(self.artnet2ram.valid_packet)]
+        self.comb += [
+            self.hub75.specific.buffer_reader.prevent_read.eq(
+                self.artnet2ram.fifo_backlog
+            )
+        ]
         ## Reduce bios size
         # Disable memtest, it takes a bit and is thus annoying
         self.add_constant("SDRAM_TEST_DISABLE")

@@ -42,8 +42,7 @@ class Hub75(Module, AutoCSR):
         self.submodules.common = FrameController(
             pins_common,
             self.ctrl.fields.enabled,
-            # TODO Adjust later on
-            brightness_psc=8,
+            brightness_psc=16,
         )
         self.submodules.specific = RowController(
             self.common, pins, output_config, panel_config, read_port,

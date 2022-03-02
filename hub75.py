@@ -84,12 +84,12 @@ class FrameController(Module):
                 NextState("WAIT"))
         fsm.act("WAIT",
                 If((brightness_counter == 0) & shifting_done & enable,
-                    NextValue(counter, 0),
+                    NextValue(counter, counter_max - 1),
                     NextState("LATCH")))
         fsm.act("LATCH",
                 outputs_common.lat.eq(1),
                 If(
-                    counter == counter_max - 1,
+                    counter == 0,
                     NextValue(brightness_counter,
                               (1 << brightness_bit) * brightness_psc),
                     start_shifting.eq(1),
@@ -100,15 +100,19 @@ class FrameController(Module):
                         NextValue(row_shifting, row_shifting + 1),
                         NextValue(brightness_bit, brightness_bits - 1),
                     ),
-                    NextState("WAIT")))
+                    NextValue(counter, counter_max - 1),
+                    NextState("WAIT"),
+                ))
+
         self.sync += [
-            counter.eq(counter + 1),
-            If(brightness_counter != 0, brightness_counter.eq(
-                brightness_counter - 1)),
+            If(counter != 0,
+               counter.eq(counter - 1)),
+            If((brightness_counter != 0) & (counter == 0),
+                brightness_counter.eq(brightness_counter - 1)),
         ]
 
         self.comb += [
-            outputs_common.oe.eq(brightness_counter == 0),
+            outputs_common.oe.eq((brightness_counter == 0) | (counter != 0)),
             outputs_common.row.eq(row_active),
         ]
 

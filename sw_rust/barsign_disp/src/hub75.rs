@@ -61,7 +61,7 @@ impl Hub75 {
         }
     }
 
-    pub fn read_img_data<'a>(&'a self) -> impl Iterator<Item = u32> + 'a {
+    pub fn read_img_data(&'_ self) -> impl Iterator<Item = u32> + '_ {
         self.hub75_data[0..self.length as usize].iter().copied()
     }
 
@@ -75,7 +75,7 @@ impl Hub75 {
         (width, self.length)
     }
 
-    pub fn get_panel_params<'a>(&'a self) -> impl Iterator<Item = u32> + 'a {
+    pub fn get_panel_params(&self) -> impl Iterator<Item = u32> + '_ {
         use pac::hub75::PANEL0_0;
         let panel_adr = &self.hub75.panel0_0 as *const PANEL0_0 as *const u32;
         let panel_reg: &[u32] =

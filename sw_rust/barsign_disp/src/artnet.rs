@@ -7,7 +7,7 @@ pub fn packet2hub75(data: &[u8]) -> Result<(usize, impl Iterator<Item = u32> + '
     // }
     if data.len() < 18 {
         // Too short
-        Err(())?
+        return Err(());
     }
     // if data[8] != 0 || data[9] != 0x50 {
     //     // Invalid command
@@ -25,7 +25,7 @@ pub fn packet2hub75(data: &[u8]) -> Result<(usize, impl Iterator<Item = u32> + '
     // }
     if data.len() < (18 + (length as usize)) {
         // Too short
-        Err(())?
+        return Err(());
     }
     let iter = data[18..length as usize + 18].chunks(3).map(|x: &[u8]| {
         let data = [x[0], x[1], x[2], 0];

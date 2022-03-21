@@ -1,6 +1,6 @@
 use core::convert::TryInto;
-pub static IMG_FILE: &'static [u8] = include_bytes!("../../../img_data.bin");
-pub static IMG_FILE_INDEXED: &'static [u8] = include_bytes!("../../../img_data_indexed.bin");
+pub static IMG_FILE: &[u8] = include_bytes!("../../../img_data.bin");
+pub static IMG_FILE_INDEXED: &[u8] = include_bytes!("../../../img_data_indexed.bin");
 
 pub fn load_default_image() -> (
     u16,

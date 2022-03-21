@@ -20,11 +20,13 @@ impl Flash {
             unsafe { core::slice::from_raw_parts_mut((0x80000000) as *mut u8, 0x00200000) };
         eeprom[offset]
     }
+
     pub fn read_manual_byte(&mut self, offset: usize) -> u8 {
         let mut data = [0];
         self.memory.read(offset as u32, &mut data).unwrap();
         data[0]
     }
+
     pub fn memory_read_test(&mut self) -> bool {
         for address in 0..FLASH_SIZE {
             if self.read_byte(address) != self.read_manual_byte(address) {
@@ -33,6 +35,7 @@ impl Flash {
         }
         true
     }
+
     pub fn write_image(&mut self, data: impl Iterator<Item = u8>) {
         // Working around the fact that `chunks()` doesn't exist on iterators.
         let mut data_iter = data.enumerate();

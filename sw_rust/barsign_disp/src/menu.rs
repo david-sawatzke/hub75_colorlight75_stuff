@@ -1,5 +1,6 @@
 use core::fmt::Write;
 
+use crate::ethernet::IpMacData;
 use crate::hal;
 use crate::hub75::{Hub75, OutputMode};
 use crate::img_flash::Flash;
@@ -31,6 +32,7 @@ pub struct Context {
     pub output: Output,
     pub hub75: Hub75,
     pub flash: Flash,
+    pub ip_mac: IpMacData,
 }
 
 impl core::fmt::Write for Context {

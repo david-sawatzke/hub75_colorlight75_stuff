@@ -5,19 +5,17 @@ use core::convert::TryInto;
 use core::fmt::Write as _;
 
 use barsign_disp::*;
-use embedded_hal::blocking::delay::DelayMs;
 use embedded_hal::blocking::serial::Write;
 use embedded_hal::serial::Read;
-use ethernet::Eth;
+use ethernet::{Eth, IpData, IpMacData};
 use hal::*;
 use heapless::Vec;
 use litex_pac as pac;
-use nb::block;
 use riscv_rt::entry;
 use smoltcp::iface::{InterfaceBuilder, NeighborCache};
 use smoltcp::socket::{TcpSocket, TcpSocketBuffer, UdpPacketMetadata, UdpSocket, UdpSocketBuffer};
 use smoltcp::time::{Duration, Instant};
-use smoltcp::wire::{EthernetAddress, IpAddress, IpCidr};
+use smoltcp::wire::{EthernetAddress, IpAddress, IpCidr, Ipv4Address};
 
 #[entry]
 fn main() -> ! {
@@ -38,14 +36,13 @@ fn main() -> ! {
     let mut buffer = [0u8; 64];
     let out_data = heapless::Vec::new();
     let output = menu::Output { serial, out_data };
-    let context = menu::Context {
-        output,
-        hub75,
-        flash,
-    };
-    let mut r = menu::Runner::new(&menu::ROOT_MENU, &mut buffer, context);
 
-    let (mac_address, mac_be) = generate_mac(&[0xde, 0xad, 0xbe, 0xef]);
+    let ip_data = IpData {
+        ip: [192, 168, 1, 49],
+    };
+
+    let ip_mac = IpMacData::new(ip_data, &[0xde, 0xad, 0xbe, 0xef]);
+    let mac_be = ip_mac.get_mac_be();
 
     peripherals
         .ETHMAC
@@ -56,7 +53,7 @@ fn main() -> ! {
         .mac_address0
         .write(|w| unsafe { w.bits((mac_be & 0xFFFFFFFF) as u32) });
 
-    let ip_address = IpAddress::v4(192, 168, 1, 49);
+    let ip_address = IpAddress::Ipv4(Ipv4Address(ip_mac.ip));
 
     peripherals.ETHMAC.ip_address.write(|w| unsafe {
         w.bits(u32::from_be_bytes(
@@ -69,7 +66,7 @@ fn main() -> ! {
     let mut ip_addrs = [IpCidr::new(ip_address, 24)];
     let mut sockets_entries: [_; 2] = Default::default();
     let mut iface = InterfaceBuilder::new(device, &mut sockets_entries[..])
-        .hardware_addr(EthernetAddress::from_bytes(&mac_address).into())
+        .hardware_addr(EthernetAddress::from_bytes(&ip_mac.mac).into())
         .neighbor_cache(neighbor_cache)
         .ip_addrs(&mut ip_addrs[..])
         .finalize();
@@ -99,21 +96,29 @@ fn main() -> ! {
     let tcp_server_handle = iface.add_socket(tcp_server_socket);
     let udp_server_handle = iface.add_socket(udp_server_socket);
 
+    let context = menu::Context {
+        ip_mac,
+        output,
+        hub75,
+        flash,
+    };
+
+    let mut r = menu::Runner::new(&menu::ROOT_MENU, &mut buffer, context);
+
     let mut time = Instant::from_millis(0);
     let mut telnet_active = false;
     loop {
-        match iface.poll(time) {
-            Ok(_) => {}
-            Err(_) => {}
-        }
+        iface.poll(time).ok();
+        // match iface.poll(time) {
+        //     Ok(_) => {}
+        //     Err(_) => {}
+        // }
 
         // tcp:23: telnet for menu
         {
-            let mut socket = iface.get_socket::<TcpSocket>(tcp_server_handle);
-            if !socket.is_open() {
-                if socket.listen(23).is_err() {
-                    writeln!(r.context.output.serial, "Couldn't listen to telnet port");
-                }
+            let socket = iface.get_socket::<TcpSocket>(tcp_server_handle);
+            if !socket.is_open() & socket.listen(23).is_err() {
+                writeln!(r.context.output.serial, "Couldn't listen to telnet port").ok();
             }
             if !telnet_active & socket.is_active() {
                 r.context.output.out_data.clear();
@@ -138,6 +143,7 @@ fn main() -> ! {
                             _ => 0,
                         }
                     };
+
                     for byte in &buffer[..received] {
                         if *byte != 0 {
                             r.input_byte(*byte);
@@ -161,11 +167,9 @@ fn main() -> ! {
         }
         // udp:6454: artnet
         {
-            let mut socket = iface.get_socket::<UdpSocket>(udp_server_handle);
-            if !socket.is_open() {
-                if !socket.bind(6454).is_ok() {
-                    writeln!(r.context.output.serial, "Couldn't open artnet port");
-                }
+            let socket = iface.get_socket::<UdpSocket>(udp_server_handle);
+            if !socket.is_open() & !socket.bind(6454).is_ok() {
+                writeln!(r.context.output.serial, "Couldn't open artnet port").ok();
             }
 
             match socket.recv() {
@@ -185,10 +189,6 @@ fn main() -> ! {
                 }
                 Err(_) => (),
             };
-            // if let Some(endpoint) = client {
-            //     let data = b"Hello World!\r\n";
-            //     socket.send_slice(data, endpoint).unwrap();
-            // }
         }
         if let Ok(data) = r.context.output.serial.read() {
             r.input_byte(if data == b'\n' { b'\r' } else { data });

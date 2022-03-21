@@ -6,6 +6,8 @@ use smoltcp::phy::{self, DeviceCapabilities};
 use smoltcp::time::Instant;
 use smoltcp::{Error, Result};
 
+use crate::pearson_hash;
+
 pub struct Eth {
     ethmac: ETHMAC,
     ethbuf: ETHMEM,
@@ -138,5 +140,36 @@ impl<'a> phy::TxToken for EthTxToken<'a> {
             SLOT = (SLOT + 1) % 2;
         }
         result
+    }
+}
+
+pub struct IpData {
+    pub ip: [u8; 4],
+}
+
+pub struct IpMacData {
+    pub ip: [u8; 4],
+    pub mac: [u8; 6],
+}
+
+impl IpMacData {
+    pub fn new(ip: IpData, uniq_data: &[u8]) -> Self {
+        let mut mac = [0; 6];
+
+        // Generate mac from unique data, hash it to generate a nice "random" value
+        pearson_hash::hash(uniq_data, &mut mac);
+        // Disable multicast
+        mac[0] &= !0b1;
+        // Set locally administered addresses bit
+        mac[0] |= 0b10;
+        Self { ip: ip.ip, mac }
+    }
+
+    pub fn get_mac_be(&self) -> u64 {
+        let mut mac_be: u64 = 0;
+        for byte in self.mac {
+            mac_be = (mac_be << 8) | byte as u64;
+        }
+        mac_be
     }
 }

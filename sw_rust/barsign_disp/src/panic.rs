@@ -1,6 +1,4 @@
-use core::cmp::min;
 use core::fmt::Write;
-use core::mem::size_of;
 use core::panic::PanicInfo;
 
 use litex_pac as pac;

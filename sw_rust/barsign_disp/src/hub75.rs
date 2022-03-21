@@ -56,11 +56,7 @@ impl Hub75 {
 
     pub fn write_img_data(&mut self, offset: usize, data: impl Iterator<Item = u32>) {
         let sdram = self.hub75_data[offset..].iter_mut();
-        for (count, (sdram, data)) in sdram
-            .zip(data)
-            .take(self.length as usize - offset)
-            .enumerate()
-        {
+        for (sdram, data) in sdram.zip(data).take(self.length as usize - offset) {
             *sdram = data;
         }
     }

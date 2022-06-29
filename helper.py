@@ -35,11 +35,11 @@ def hub75_conn(platform):
                 Pins(
                     pins[8]
                     + " "
-                    + pins[11]
+                    + pins[9]
                     + " "
                     + pins[10]
                     + " "
-                    + pins[9]
+                    + pins[11]
                     + " "
                     + pins[7]
                 ),

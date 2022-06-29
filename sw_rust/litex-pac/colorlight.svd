@@ -3,7 +3,7 @@
 <device schemaVersion="1.1" xmlns:xs="http://www.w3.org/2001/XMLSchema-instance" xs:noNamespaceSchemaLocation="CMSIS-SVD.xsd" >
     <vendor>litex</vendor>
     <name>SOC</name>
-    <description><![CDATA[Litex SoC 2022-01-30 19:07:30]]></description>
+    <description><![CDATA[Litex SoC 2022-06-29 20:22:00]]></description>
 
     <addressUnitBits>8</addressUnitBits>
     <width>32</width>
@@ -19,15 +19,15 @@
             <groupName>SPIFLASH_MMAP</groupName>
             <registers>
                 <register>
-                    <name>SYS_CLK_FREQ</name>
+                    <name>MMAP_DUMMY_BITS</name>
                     <addressOffset>0x0000</addressOffset>
                     <resetValue>0x00</resetValue>
                     <size>32</size>
                     <fields>
                         <field>
-                            <name>sys_clk_freq</name>
-                            <msb>31</msb>
-                            <bitRange>[31:0]</bitRange>
+                            <name>mmap_dummy_bits</name>
+                            <msb>7</msb>
+                            <bitRange>[7:0]</bitRange>
                             <lsb>0</lsb>
                         </field>
                     </fields>
@@ -139,24 +139,10 @@ lines).]]></description>
                         </field>
                     </fields>
                 </register>
-                <register>
-                    <name>DUMMY_BITS</name>
-                    <addressOffset>0x0004</addressOffset>
-                    <resetValue>0x00</resetValue>
-                    <size>32</size>
-                    <fields>
-                        <field>
-                            <name>dummy_bits</name>
-                            <msb>7</msb>
-                            <bitRange>[7:0]</bitRange>
-                            <lsb>0</lsb>
-                        </field>
-                    </fields>
-                </register>
             </registers>
             <addressBlock>
                 <offset>0</offset>
-                <size>0x8</size>
+                <size>0x4</size>
                 <usage>registers</usage>
             </addressBlock>
         </peripheral>
@@ -1675,6 +1661,7 @@ register to disable individual events.]]></description>
             <registers>
                 <register>
                     <name>DFII_CONTROL</name>
+                    <description><![CDATA[Control DFI signals common to all phases]]></description>
                     <addressOffset>0x0000</addressOffset>
                     <resetValue>0x01</resetValue>
                     <size>32</size>
@@ -1691,35 +1678,72 @@ register to disable individual events.]]></description>
                             <msb>1</msb>
                             <bitRange>[1:1]</bitRange>
                             <lsb>1</lsb>
-                            <description><![CDATA[None]]></description>
+                            <description><![CDATA[DFI clock enable bus]]></description>
                         </field>
                         <field>
                             <name>odt</name>
                             <msb>2</msb>
                             <bitRange>[2:2]</bitRange>
                             <lsb>2</lsb>
-                            <description><![CDATA[None]]></description>
+                            <description><![CDATA[DFI on-die termination bus]]></description>
                         </field>
                         <field>
                             <name>reset_n</name>
                             <msb>3</msb>
                             <bitRange>[3:3]</bitRange>
                             <lsb>3</lsb>
-                            <description><![CDATA[None]]></description>
+                            <description><![CDATA[DFI clock reset bus]]></description>
                         </field>
                     </fields>
                 </register>
                 <register>
                     <name>DFII_PI0_COMMAND</name>
+                    <description><![CDATA[Control DFI signals on a single phase]]></description>
                     <addressOffset>0x0004</addressOffset>
                     <resetValue>0x00</resetValue>
                     <size>32</size>
                     <fields>
                         <field>
-                            <name>dfii_pi0_command</name>
-                            <msb>5</msb>
-                            <bitRange>[5:0]</bitRange>
+                            <name>cs</name>
+                            <msb>0</msb>
+                            <bitRange>[0:0]</bitRange>
                             <lsb>0</lsb>
+                            <description><![CDATA[DFI chip select bus]]></description>
+                        </field>
+                        <field>
+                            <name>we</name>
+                            <msb>1</msb>
+                            <bitRange>[1:1]</bitRange>
+                            <lsb>1</lsb>
+                            <description><![CDATA[DFI write enable bus]]></description>
+                        </field>
+                        <field>
+                            <name>cas</name>
+                            <msb>2</msb>
+                            <bitRange>[2:2]</bitRange>
+                            <lsb>2</lsb>
+                            <description><![CDATA[DFI column address strobe bus]]></description>
+                        </field>
+                        <field>
+                            <name>ras</name>
+                            <msb>3</msb>
+                            <bitRange>[3:3]</bitRange>
+                            <lsb>3</lsb>
+                            <description><![CDATA[DFI row address strobe bus]]></description>
+                        </field>
+                        <field>
+                            <name>wren</name>
+                            <msb>4</msb>
+                            <bitRange>[4:4]</bitRange>
+                            <lsb>4</lsb>
+                            <description><![CDATA[DFI write data enable bus]]></description>
+                        </field>
+                        <field>
+                            <name>rden</name>
+                            <msb>5</msb>
+                            <bitRange>[5:5]</bitRange>
+                            <lsb>5</lsb>
+                            <description><![CDATA[DFI read data enable bus]]></description>
                         </field>
                     </fields>
                 </register>
@@ -1739,6 +1763,7 @@ register to disable individual events.]]></description>
                 </register>
                 <register>
                     <name>DFII_PI0_ADDRESS</name>
+                    <description><![CDATA[DFI address bus]]></description>
                     <addressOffset>0x000c</addressOffset>
                     <resetValue>0x00</resetValue>
                     <size>32</size>
@@ -1753,6 +1778,7 @@ register to disable individual events.]]></description>
                 </register>
                 <register>
                     <name>DFII_PI0_BADDRESS</name>
+                    <description><![CDATA[DFI bank address bus]]></description>
                     <addressOffset>0x0010</addressOffset>
                     <resetValue>0x00</resetValue>
                     <size>32</size>
@@ -1767,6 +1793,7 @@ register to disable individual events.]]></description>
                 </register>
                 <register>
                     <name>DFII_PI0_WRDATA</name>
+                    <description><![CDATA[DFI write data bus]]></description>
                     <addressOffset>0x0014</addressOffset>
                     <resetValue>0x00</resetValue>
                     <size>32</size>
@@ -1781,6 +1808,7 @@ register to disable individual events.]]></description>
                 </register>
                 <register>
                     <name>DFII_PI0_RDDATA</name>
+                    <description><![CDATA[DFI read data bus]]></description>
                     <addressOffset>0x0018</addressOffset>
                     <resetValue>0x00</resetValue>
                     <size>32</size>
@@ -2239,7 +2267,6 @@ register to disable individual events.]]></description>
             <constant name="CONFIG_CPU_VARIANT_MINIMAL" value="None" />
             <constant name="CONFIG_CPU_HUMAN_NAME" value="VexRiscv_Min" />
             <constant name="CONFIG_CPU_NOP" value="nop" />
-            <constant name="CONFIG_WITH_BUILD_TIME" value="None" />
             <constant name="FLASH_BOOT_ADDRESS" value="2148532224" />
             <constant name="SPIFLASH_PAGE_SIZE" value="256" />
             <constant name="CONFIG_L2_SIZE" value="8192" />
@@ -2249,6 +2276,7 @@ register to disable individual events.]]></description>
             <constant name="CONFIG_BUS_STANDARD" value="WISHBONE" />
             <constant name="CONFIG_BUS_DATA_WIDTH" value="32" />
             <constant name="CONFIG_BUS_ADDRESS_WIDTH" value="32" />
+            <constant name="CONFIG_BUS_BURSTING" value="0" />
             <constant name="ETHMAC_RX_SLOTS" value="2" />
             <constant name="ETHMAC_TX_SLOTS" value="2" />
             <constant name="ETHMAC_SLOT_SIZE" value="2048" />

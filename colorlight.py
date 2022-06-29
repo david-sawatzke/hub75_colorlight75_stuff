@@ -118,7 +118,14 @@ class _CRG(Module):
 
 
 class BaseSoC(SoCCore):
-    def __init__(self, revision, sys_clk_freq=50e6, sdram_rate="1:1", **kwargs):
+    def __init__(
+        self,
+        revision,
+        sys_clk_freq=50e6,
+        sdram_rate="1:1",
+        no_ident_version=False,
+        **kwargs
+    ):
         platform = colorlight_5a_75b.Platform(revision=revision)
         sys_clk_freq = int(sys_clk_freq)
         # SoCCore ----------------------------------------------------------------------------------
@@ -145,7 +152,6 @@ class BaseSoC(SoCCore):
         )
         self.submodules.spiflash_mmap = LiteSPI(
             phy=self.spiflash_phy,
-            clk_freq=sys_clk_freq,
             mmap_endianness=self.cpu.endianness,
         )
         self.add_csr("spiflash_mmap")
@@ -275,7 +281,7 @@ class BaseSoC(SoCCore):
 def main():
     parser = argparse.ArgumentParser(description="LiteX SoC on Colorlight 5A-75X")
     builder_args(parser)
-    # soc_core_args(parser)
+    soc_core_args(parser)
     trellis_args(parser)
     parser.add_argument("--build", action="store_true", help="Build bitstream")
     parser.add_argument("--load", action="store_true", help="Load bitstream")
@@ -284,7 +290,7 @@ def main():
         "--revision",
         default="7.0",
         type=str,
-        help="Board revision 7.0 (default) or 6.1",
+        help="Board revision 7.0 (default) or 6.1 or 8.0",
     )
     parser.add_argument(
         "--ip-address",
@@ -333,11 +339,16 @@ def main():
                 0x00000000, os.path.join(builder.gateware_dir, soc.build_name + ".bit")
             )
 
+
 def modify_svd(svd_contents, eth_addr):
     # Add Ethernet buffer peripheral to svd
-    registers = """        <peripheral>
+    registers = (
+        """        <peripheral>
             <name>ETHMEM</name>
-""" + "            <baseAddress>" + hex(eth_addr) + """</baseAddress>
+"""
+        + "            <baseAddress>"
+        + hex(eth_addr)
+        + """</baseAddress>
             <groupName>ETHMEM</groupName>
             <registers>
                 <register>
@@ -420,6 +431,7 @@ def modify_svd(svd_contents, eth_addr):
             </addressBlock>
         </peripheral>
     </peripherals>"""
+    )
 
     return svd_contents.replace("</peripherals>", registers)
 

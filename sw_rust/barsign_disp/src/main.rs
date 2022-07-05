@@ -27,8 +27,8 @@ fn main() -> ! {
 
     serial.bwrite_all(b"Hello world!\n").unwrap();
 
-    let hub75 = hub75::Hub75::new(peripherals.HUB75, peripherals.HUB75_PALETTE);
-    let flash = img_flash::Flash::new(peripherals.SPIFLASH_MMAP);
+    let mut hub75 = hub75::Hub75::new(peripherals.HUB75, peripherals.HUB75_PALETTE);
+    let mut flash = img_flash::Flash::new(peripherals.SPIFLASH_MMAP);
     let mut delay = TIMER {
         registers: peripherals.TIMER0,
         sys_clk: 50_000_000,
@@ -95,6 +95,14 @@ fn main() -> ! {
 
     let tcp_server_handle = iface.add_socket(tcp_server_socket);
     let udp_server_handle = iface.add_socket(udp_server_socket);
+
+    if let Ok(image) = img::load_image(flash.read_image()) {
+        hub75.set_img_param(image.0, image.1);
+        hub75.set_panel_params(image.2);
+        hub75.write_img_data(0, image.3);
+        // TODO indexed
+        hub75.on();
+    }
 
     let context = menu::Context {
         ip_mac,

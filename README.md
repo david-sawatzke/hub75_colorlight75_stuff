@@ -1,3 +1,19 @@
+# Features
+- IP Networking (static IP)
+- Management console over telnet & serial
+- FullColor & Indexed mode, both usable with Art-Net
+  - Palette changeable via the last two universes
+  - Only with mod 3 lengths
+- Save & Load image via flash
+- Change panel & image parameters via console and save/load them from flash
+
+
+# Notes for new boards
+The flash *may* have a write lock. Remove it with
+`ecpprog -p`
+
+I've done flashing using a FT2232 & ecpprog (integrated in the colorlight.py script). The JTAG pinout for the different board revisions is documented in the [chubb75 project](https://github.com/q3k/chubby75/)
+
 # Setup
 ## Dependencies
 - yosys

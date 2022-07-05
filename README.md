@@ -42,8 +42,8 @@ $ lxterm /dev/ttyUSB1 --kernel sw/firmware.bin
 ## Flash sw
 
 ``` sh
-$ python3 -m litex.soc.software.mkmscimg sw/firmware.bin -f --little -o sw/firmware.fbi
-$ ecpprog -o 1M sw/firmware.fbi
+$ python3 -m litex.soc.software.mkmscimg sw_rust/barsign_disp/target/riscv32i-unknown-none-elf/release/barsign-disp.bin -f --little -o firmware.fbi
+$ ecpprog -o 1M firmware.fbi
 
 ```
 

@@ -121,7 +121,7 @@ class BaseSoC(SoCCore):
     def __init__(
         self,
         revision,
-        sys_clk_freq=50e6,
+        sys_clk_freq=40e6,
         sdram_rate="1:1",
         no_ident_version=False,
         **kwargs
@@ -303,10 +303,12 @@ def main():
         help="Ethernet MAC address of the board (defaullt: 0x726b895bc2e2).",
     )
     parser.add_argument(
-        # TODO raise it to 60e6 or whatever fits for ethernet
+        # TODO If the hub75 clock is > 20MHz (from a system 40 MHz) the image gets unstable
+        # But the other parts can run at a higher frequency (especially the part loading the next line from SDRAM into blockram)
+        # So to increase performance, maybe add a CDC?
         "--sys-clk-freq",
-        default=50e6,
-        help="System clock frequency (default: 50MHz)",
+        default=40e6,
+        help="System clock frequency (default: 40MHz)",
     )
     args = parser.parse_args()
 

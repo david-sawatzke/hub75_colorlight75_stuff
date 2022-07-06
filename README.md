@@ -60,7 +60,6 @@ $ lxterm /dev/ttyUSB1 --kernel sw/firmware.bin
 ``` sh
 $ python3 -m litex.soc.software.mkmscimg sw_rust/barsign_disp/target/riscv32i-unknown-none-elf/release/barsign-disp.bin -f --little -o firmware.fbi
 $ ecpprog -o 1M firmware.fbi
-
 ```
 
 ## To simulate SoC
@@ -73,6 +72,13 @@ make SIM=X
 Run it
 ``` sh
 ./litex_sim.py --sdram-init sw/firmware_sim.bin 
+```
+
+Ethernet port
+
+``` sh
+sudo ip tuntap add tap0 mode tap
+sudo ip l  set dev tap0 up
 ```
 
 ## Serial Port

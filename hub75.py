@@ -211,11 +211,21 @@ class RamToBufferReader(Module):
         self.sync += If(start, done.eq(False))
 
         # RAM Reader
-        self.submodules.reader = LiteDRAMDMAReader(mem_read_port)
+        self.submodules.reader = LiteDRAMDMAReader(mem_read_port, 16)
         self.submodules.ram_adr = RamAddressGenerator(
             start, self.reader.sink.ready & ~self.prevent_read, row, image_width, panel_config,
             collumns_2, chain_length_2)
 
+        # Generate rsv_level which was removed
+        rsv_level = Signal(max=16 + 1)
+        self.sync += [
+            If(self.reader.sink.valid & self.reader.sink.ready,
+               If(~(self.reader.source.valid & self.reader.source.ready),
+                  rsv_level.eq(rsv_level + 1)
+            )).Elif(self.reader.source.valid & self.reader.source.ready,
+                rsv_level.eq(rsv_level - 1)
+            )
+        ]
         ram_valid = self.reader.source.valid
         ram_data = self.reader.source.data
         ram_done = Signal()
@@ -223,7 +233,7 @@ class RamToBufferReader(Module):
             self.reader.sink.address.eq(self.ram_adr.adr),
             self.reader.sink.valid.eq(self.ram_adr.valid & ~self.prevent_read),
             ram_done.eq((self.ram_adr.started == False)
-                        & (self.reader.rsv_level == 0)
+                        & (rsv_level == 0)
                         & (self.reader.source.valid == False))
         ]
         self.sync += [
@@ -232,7 +242,7 @@ class RamToBufferReader(Module):
                )
             .Elif(
                 (self.ram_adr.started == False)
-                & (self.reader.rsv_level == 0),
+                & (rsv_level == 0),
                 self.reader.source.ready.eq(False),
             )
             .Else(

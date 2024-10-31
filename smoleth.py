@@ -233,7 +233,7 @@ class SmolEth(Module, AutoCSR):
         )
 
         self.submodules.interface = wishbone_interface
-        self.ev, self.bus = self.interface.sram.ev, self.interface.bus
+        self.ev, self.bus_rx, self.bus_tx = self.interface.sram.ev, self.interface.bus_rx, self.interface.bus_tx
         # Use this instead of AutoCSR to maintain the same names as in liteeth
         self.csrs = (
             self.interface.get_csrs()

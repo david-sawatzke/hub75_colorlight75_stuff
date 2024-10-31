@@ -3,7 +3,7 @@
 <device schemaVersion="1.1" xmlns:xs="http://www.w3.org/2001/XMLSchema-instance" xs:noNamespaceSchemaLocation="CMSIS-SVD.xsd" >
     <vendor>litex</vendor>
     <name>SOC</name>
-    <description><![CDATA[Litex SoC 2022-07-05 18:04:50]]></description>
+    <description><![CDATA[Litex SoC 2024-10-31 19:37:26]]></description>
 
     <addressUnitBits>8</addressUnitBits>
     <width>32</width>
@@ -566,16 +566,16 @@ register to disable individual events.]]></description>
                         </field>
                         <field>
                             <name>clock_speed</name>
-                            <msb>1</msb>
-                            <bitRange>[1:1]</bitRange>
+                            <msb>2</msb>
+                            <bitRange>[2:1]</bitRange>
                             <lsb>1</lsb>
                             <description><![CDATA[None]]></description>
                         </field>
                         <field>
                             <name>duplex_status</name>
-                            <msb>2</msb>
-                            <bitRange>[2:2]</bitRange>
-                            <lsb>2</lsb>
+                            <msb>3</msb>
+                            <bitRange>[3:3]</bitRange>
+                            <lsb>3</lsb>
                             <description><![CDATA[None]]></description>
                         </field>
                     </fields>
@@ -1745,6 +1745,20 @@ register to disable individual events.]]></description>
                             <lsb>5</lsb>
                             <description><![CDATA[DFI read data enable bus]]></description>
                         </field>
+                        <field>
+                            <name>cs_top</name>
+                            <msb>6</msb>
+                            <bitRange>[6:6]</bitRange>
+                            <lsb>6</lsb>
+                            <description><![CDATA[DFI chip select bus for top half only]]></description>
+                        </field>
+                        <field>
+                            <name>cs_bottom</name>
+                            <msb>7</msb>
+                            <bitRange>[7:7]</bitRange>
+                            <lsb>7</lsb>
+                            <description><![CDATA[DFI chip select bus for bottom half only]]></description>
+                        </field>
                     </fields>
                 </register>
                 <register>
@@ -2254,32 +2268,47 @@ register to disable individual events.]]></description>
                 <size>0x00002000</size>
             </memoryRegion>
             <memoryRegion>
+                <name>ETHMAC_RX</name>
+                <baseAddress>0x80200000</baseAddress>
+                <size>0x00001000</size>
+            </memoryRegion>
+            <memoryRegion>
+                <name>ETHMAC_TX</name>
+                <baseAddress>0x80201000</baseAddress>
+                <size>0x00001000</size>
+            </memoryRegion>
+            <memoryRegion>
                 <name>CSR</name>
                 <baseAddress>0xF0000000</baseAddress>
                 <size>0x00010000</size>
             </memoryRegion>
         </memoryRegions>
         <constants>
+            <constant name="CONFIG_PLATFORM_NAME" value="colorlight_5a_75b" />
             <constant name="CONFIG_CLOCK_FREQUENCY" value="40000000" />
             <constant name="CONFIG_CPU_HAS_INTERRUPT" value="None" />
             <constant name="CONFIG_CPU_RESET_ADDR" value="0" />
             <constant name="CONFIG_CPU_TYPE_VEXRISCV" value="None" />
             <constant name="CONFIG_CPU_VARIANT_MINIMAL" value="None" />
+            <constant name="CONFIG_CPU_FAMILY" value="riscv" />
+            <constant name="CONFIG_CPU_NAME" value="vexriscv" />
             <constant name="CONFIG_CPU_HUMAN_NAME" value="VexRiscv_Min" />
             <constant name="CONFIG_CPU_NOP" value="nop" />
+            <constant name="CONFIG_IDENTIFIER" value="LiteX SoC on Colorlight 5A-75B 2024-10-31 19:34:39" />
             <constant name="FLASH_BOOT_ADDRESS" value="2148532224" />
             <constant name="SPIFLASH_PAGE_SIZE" value="256" />
             <constant name="CONFIG_L2_SIZE" value="8192" />
             <constant name="SDRAM_TEST_DISABLE" value="None" />
             <constant name="CONFIG_CSR_DATA_WIDTH" value="32" />
             <constant name="CONFIG_CSR_ALIGNMENT" value="32" />
-            <constant name="CONFIG_BUS_STANDARD" value="WISHBONE" />
+            <constant name="CONFIG_BUS_STANDARD" value="wishbone" />
             <constant name="CONFIG_BUS_DATA_WIDTH" value="32" />
             <constant name="CONFIG_BUS_ADDRESS_WIDTH" value="32" />
             <constant name="CONFIG_BUS_BURSTING" value="0" />
             <constant name="ETHMAC_RX_SLOTS" value="2" />
             <constant name="ETHMAC_TX_SLOTS" value="2" />
             <constant name="ETHMAC_SLOT_SIZE" value="2048" />
+            <constant name="CONFIG_CPU_INTERRUPTS" value="3" />
             <constant name="ETHMAC_INTERRUPT" value="2" />
             <constant name="TIMER0_INTERRUPT" value="1" />
             <constant name="UART_INTERRUPT" value="0" />

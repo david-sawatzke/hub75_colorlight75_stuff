@@ -246,11 +246,28 @@ class BaseSoC(SoCCore):
             ip_address=etherbone_ip_address,
             dw=32,
         )
+        rxtx_region_size = self.ethmac.rx_slots.constant*self.ethmac.slot_size.constant
         # SoftCPU
-        self.add_memory_region(
-            "ethmac", self.mem_map.get("ethmac", None), 0x2000, type="io"
+        self.bus.add_region("ethmac", SoCRegion(
+            origin = self.mem_map.get("ethmac", None),
+            size   = rxtx_region_size * 2,
+            linker = True,
+            cached = False,
+        ))
+        ethmac_rx_region = SoCRegion(
+            origin = self.bus.regions["ethmac"].origin + 0,
+            size   = rxtx_region_size,
+            linker = True,
+            cached = False,
         )
-        self.add_wb_slave(self.mem_regions["ethmac"].origin, self.ethmac.bus, 0x2000)
+        self.bus.add_slave(name=f"ethmac_rx", slave=self.ethmac.bus_rx, region=ethmac_rx_region)
+        ethmac_tx_region = SoCRegion(
+            origin = self.bus.regions["ethmac"].origin + rxtx_region_size,
+            size   = rxtx_region_size,
+            linker = True,
+            cached = False,
+        )
+        self.bus.add_slave(name=f"ethmac_tx", slave=self.ethmac.bus_tx, region=ethmac_tx_region)
         if self.irq.enabled:
             self.irq.add("ethmac", use_loc_if_exists=True)
         eth_rx_clk = getattr(phy, "crg", phy).cd_eth_rx.clk
@@ -318,7 +335,8 @@ def main():
     builder_options = builder_argdict(args)
     # builder_options["csr_svd"] = "sw_rust/litex-pac/colorlight.svd"
     # builder_options["memory_x"] = "sw_rust/litex-pac/memory.x"
-    builder = Builder(soc, **builder_options, bios_options=["TERM_MINI"])
+    builder_options["bios_console"] = "lite"
+    builder = Builder(soc, **builder_options)
     builder.build(**trellis_argdict(args), run=args.build)
 
     # Generate svd

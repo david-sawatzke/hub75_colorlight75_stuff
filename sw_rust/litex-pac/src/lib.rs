@@ -1,11 +1,12 @@
 #![no_std]
 
-// Pull all the PAC stuff into our local namespace.
+// Generated file, ignore warnings and formatting
+#[allow(non_camel_case_types, clippy::all)]
+#[rustfmt::skip]
 pub mod pac;
 
-// This allows this library to re-export everything within `pac`.
+pub use pac::generic::*;
 pub use pac::*;
-
-// These are all not exported from the main crate, but are pub when
-// accessed through pac::generic.
-pub use pac::generic::{Readable, Reg, ResetValue, Writable, R, W};
+pub use riscv;
+#[cfg(feature = "rt")]
+pub use riscv_rt;

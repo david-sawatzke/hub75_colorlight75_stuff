@@ -1,4 +1,5 @@
 use core::fmt::Write;
+use embedded_hal::prelude::_embedded_hal_serial_Write;
 
 use crate::ethernet::IpMacData;
 use crate::hal;
@@ -186,7 +187,7 @@ pub const ROOT_MENU: Menu<Context> = Menu {
 
 fn reboot(_menu: &Menu<Context>, _item: &Item<Context>, _args: &[&str], _context: &mut Context) {
     // Safe, because the soc is reset *now*
-    unsafe { (*pac::CTRL::ptr()).reset.write(|w| w.soc_rst().set_bit()) };
+    unsafe { (*pac::Ctrl::ptr()).reset().write(|w| w.soc_rst().set_bit()) };
 }
 
 fn default_image(
@@ -370,3 +371,16 @@ fn set_default_panel_params(
     context.hub75.set_panel_param(0, 2, 2, 0, 0);
     context.hub75.set_panel_param(0, 3, 2, 1, 0);
 }
+
+// fn set_mac_ip(_menu: &Menu<Context>, item: &Item<Context>, args: &[&str], context: &mut Context) {
+//     let mac_arg: &str = argument_finder(item, args, "mac").unwrap().unwrap();
+//     let ip_arg: &str = argument_finder(item, args, "ip").unwrap().unwrap();
+//     let mut ip: [u8; 4] = [0, 0, 0, 0];
+//     let mut mac: [u8; 6] = [0, 0, 0, 0, 0, 0];
+//     for (i, section) in ip_arg.split_on(".").enumerate() {
+//         ip[i] = section.parse().unwrap();
+//     }
+//     for (i, section) in mac_arg.split_on(":").enumerate() {
+//         mac[i] = section.parse_hex().unwrap();
+//     }
+// }

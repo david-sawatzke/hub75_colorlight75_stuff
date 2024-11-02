@@ -12,9 +12,9 @@ fn panic(info: &PanicInfo) -> ! {
     writeln!(writer, "Panic done!").ok();
     // And reboot!
 
-    unsafe { (*pac::CTRL::ptr()).reset.write(|w| w.soc_rst().set_bit()) };
+    unsafe { (*pac::Ctrl::ptr()).reset().write(|w| w.soc_rst().set_bit()) };
     loop {
-        unsafe { (*pac::CTRL::ptr()).reset.write(|w| w.soc_rst().set_bit()) };
+        unsafe { (*pac::Ctrl::ptr()).reset().write(|w| w.soc_rst().set_bit()) };
     }
 }
 
@@ -22,11 +22,11 @@ struct PanicWriter {}
 
 impl core::fmt::Write for PanicWriter {
     fn write_str(&mut self, s: &str) -> Result<(), core::fmt::Error> {
-        let uart = unsafe { &(*pac::UART::ptr()) };
+        let uart = unsafe { &(*pac::Uart::ptr()) };
         for byte in s.as_bytes() {
-            while uart.txfull.read().bits() != 0 {}
+            while uart.txfull().read().bits() != 0 {}
             unsafe {
-                uart.rxtx.write(|w| w.rxtx().bits(*byte));
+                uart.rxtx().write(|w| w.rxtx().bits(*byte));
             }
         }
         Ok(())

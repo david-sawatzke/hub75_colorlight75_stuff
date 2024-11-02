@@ -4,9 +4,9 @@ const CHAIN_LENGTH: u8 = 4;
 const OUTPUTS: u8 = 8;
 
 pub struct Hub75 {
-    hub75: pac::HUB75,
+    hub75: pac::Hub75,
     hub75_data: &'static mut [u32],
-    hub75_palette: pac::HUB75_PALETTE,
+    hub75_palette: pac::Hub75Palette,
     length: u32,
 }
 
@@ -16,7 +16,7 @@ pub enum OutputMode {
 }
 
 impl Hub75 {
-    pub fn new(hub75: pac::HUB75, hub75_palette: pac::HUB75_PALETTE) -> Self {
+    pub fn new(hub75: pac::Hub75, hub75_palette: pac::Hub75Palette) -> Self {
         let hub75_data = unsafe {
             core::slice::from_raw_parts_mut(
                 (0x90000000u32 + 0x00400000 / 2) as *mut u32,
@@ -33,22 +33,22 @@ impl Hub75 {
     }
 
     pub fn on(&mut self) {
-        self.hub75.ctrl.modify(|_, w| w.enabled().set_bit());
+        self.hub75.ctrl().modify(|_, w| w.enabled().set_bit());
     }
 
     pub fn off(&mut self) {
-        self.hub75.ctrl.modify(|_, w| w.enabled().clear_bit());
+        self.hub75.ctrl().modify(|_, w| w.enabled().clear_bit());
     }
 
     pub fn set_mode(&mut self, mode: OutputMode) {
-        self.hub75.ctrl.modify(|_, w| match mode {
+        self.hub75.ctrl().modify(|_, w| match mode {
             OutputMode::FullColor => w.indexed().clear_bit(),
             OutputMode::Indexed => w.indexed().set_bit(),
         });
     }
 
     pub fn get_mode(&mut self) -> OutputMode {
-        match self.hub75.ctrl.read().indexed().bit() {
+        match self.hub75.ctrl().read().indexed().bit() {
             false => OutputMode::FullColor,
             true => OutputMode::Indexed,
         }
@@ -66,27 +66,27 @@ impl Hub75 {
     }
 
     pub fn set_img_param(&mut self, width: u16, length: u32) {
-        unsafe { self.hub75.ctrl.modify(|_, w| w.width().bits(width)) };
+        unsafe { self.hub75.ctrl().modify(|_, w| w.width().bits(width)) };
         self.length = length;
     }
 
     pub fn get_img_param(&self) -> (u16, u32) {
-        let width = self.hub75.ctrl.read().width().bits();
+        let width = self.hub75.ctrl().read().width().bits();
         (width, self.length)
     }
 
     pub fn get_panel_params(&self) -> impl Iterator<Item = u32> + '_ {
-        use pac::hub75::PANEL0_0;
-        let panel_adr = &self.hub75.panel0_0 as *const PANEL0_0 as *const u32;
+        use pac::hub75::Panel0_0;
+        let panel_adr = self.hub75.panel0_0() as *const Panel0_0 as *const u32;
         let panel_reg: &[u32] =
             unsafe { core::slice::from_raw_parts(panel_adr, (OUTPUTS * CHAIN_LENGTH) as usize) };
         panel_reg.iter().copied()
     }
 
     pub fn set_panel_params(&mut self, params: impl Iterator<Item = u32>) {
-        use pac::hub75::PANEL0_0;
-        let panel_adr = &self.hub75.panel0_0 as *const PANEL0_0;
-        let panel_reg: &[PANEL0_0] =
+        use pac::hub75::Panel0_0;
+        let panel_adr = self.hub75.panel0_0() as *const Panel0_0;
+        let panel_reg: &[Panel0_0] =
             unsafe { core::slice::from_raw_parts(panel_adr, (OUTPUTS * CHAIN_LENGTH) as usize) };
         for (reg, data) in panel_reg.iter().zip(params) {
             unsafe { reg.write(|w| w.bits(data)) };
@@ -97,10 +97,10 @@ impl Hub75 {
         if output >= OUTPUTS || chain_num >= CHAIN_LENGTH {
             return;
         }
-        use pac::hub75::PANEL0_0;
+        use pac::hub75::Panel0_0;
         let chain_offset = (output * CHAIN_LENGTH + chain_num) as usize;
-        let panel_adr = &self.hub75.panel0_0 as *const PANEL0_0;
-        let panel_reg: &[PANEL0_0] =
+        let panel_adr = self.hub75.panel0_0() as *const Panel0_0;
+        let panel_reg: &[Panel0_0] =
             unsafe { core::slice::from_raw_parts(panel_adr, (OUTPUTS * CHAIN_LENGTH) as usize) };
         unsafe { panel_reg[chain_offset].write(|w| w.x().bits(x).y().bits(y).rot().bits(rot)) };
     }
@@ -109,10 +109,10 @@ impl Hub75 {
         if output >= OUTPUTS || chain_num >= CHAIN_LENGTH {
             return (255, 255, 255);
         }
-        use pac::hub75::PANEL0_0;
+        use pac::hub75::Panel0_0;
         let chain_offset = (output * CHAIN_LENGTH + chain_num) as usize;
-        let panel_adr = &self.hub75.panel0_0 as *const PANEL0_0;
-        let panel_reg: &[PANEL0_0] =
+        let panel_adr = self.hub75.panel0_0() as *const Panel0_0;
+        let panel_reg: &[Panel0_0] =
             unsafe { core::slice::from_raw_parts(panel_adr, (OUTPUTS * CHAIN_LENGTH) as usize) };
         let data = panel_reg[chain_offset].read();
         (data.x().bits(), data.y().bits(), data.rot().bits())
@@ -120,9 +120,9 @@ impl Hub75 {
 
     pub fn set_palette(&mut self, offset: u8, data: impl Iterator<Item = u32>) {
         const LENGTH: usize = 256;
-        use pac::hub75_palette::HUB75_PALETTE;
-        let palette_adr = &self.hub75_palette.hub75_palette as *const HUB75_PALETTE;
-        let palette_data: &[HUB75_PALETTE] =
+        use pac::hub75_palette::Hub75Palette;
+        let palette_adr = self.hub75_palette.hub75_palette() as *const Hub75Palette;
+        let palette_data: &[Hub75Palette] =
             unsafe { core::slice::from_raw_parts(palette_adr, LENGTH) };
         for (index, data) in data.take(LENGTH - (offset as usize)).enumerate() {
             unsafe { palette_data[index + (offset as usize)].write(|w| w.bits(data)) };
@@ -131,8 +131,8 @@ impl Hub75 {
 
     pub fn get_palette(&mut self) -> &'_ [u32] {
         const LENGTH: usize = 256;
-        use pac::hub75_palette::HUB75_PALETTE;
-        let palette_adr = &self.hub75_palette.hub75_palette as *const HUB75_PALETTE as *const u32;
+        use pac::hub75_palette::Hub75Palette;
+        let palette_adr = self.hub75_palette.hub75_palette() as *const Hub75Palette as *const u32;
         let palette_data: &[u32] = unsafe { core::slice::from_raw_parts(palette_adr, LENGTH) };
         palette_data
     }

@@ -19,23 +19,26 @@ use smoltcp::wire::{EthernetAddress, IpAddress, IpCidr, Ipv4Address};
 
 #[entry]
 fn main() -> ! {
-    let peripherals = pac::Peripherals::take().unwrap();
+    let peripherals = unsafe { pac::Peripherals::steal() };
 
     let mut serial = UART {
-        registers: peripherals.UART,
+        registers: peripherals.uart,
     };
 
     serial.bwrite_all(b"Hello world!\n").unwrap();
 
-    let mut hub75 = hub75::Hub75::new(peripherals.HUB75, peripherals.HUB75_PALETTE);
-    let mut flash = img_flash::Flash::new(peripherals.SPIFLASH_MMAP);
+    let mut hub75 = hub75::Hub75::new(peripherals.hub75, peripherals.hub75_palette);
+    let mut flash = img_flash::Flash::new(peripherals.spiflash_mmap);
     let mut delay = TIMER {
-        registers: peripherals.TIMER0,
+        registers: peripherals.timer0,
         sys_clk: 50_000_000,
     };
     let mut buffer = [0u8; 64];
     let out_data = heapless::Vec::new();
     let output = menu::Output { serial, out_data };
+    // TODO First read ip & mac, and after setting them print them again to verify it worked
+    // TODO spi-memory make command public to read unique id
+    // TODO unique id length is dependent on the chip, so read jedec id
 
     let ip_data = IpData {
         ip: [192, 168, 1, 49],
@@ -45,22 +48,22 @@ fn main() -> ! {
     let mac_be = ip_mac.get_mac_be();
 
     peripherals
-        .ETHMAC
-        .mac_address1
+        .ethmac
+        .mac_address1()
         .write(|w| unsafe { w.bits((mac_be >> 32) as u32) });
     peripherals
-        .ETHMAC
-        .mac_address0
+        .ethmac
+        .mac_address0()
         .write(|w| unsafe { w.bits((mac_be & 0xFFFFFFFF) as u32) });
 
     let ip_address = IpAddress::Ipv4(Ipv4Address(ip_mac.ip));
 
-    peripherals.ETHMAC.ip_address.write(|w| unsafe {
+    peripherals.ethmac.ip_address().write(|w| unsafe {
         w.bits(u32::from_be_bytes(
             ip_address.as_bytes().try_into().unwrap(),
         ))
     });
-    let device = Eth::new(peripherals.ETHMAC, peripherals.ETHMEM);
+    let device = Eth::new(peripherals.ethmac, peripherals.ethmem);
     let mut neighbor_cache_entries = [None; 8];
     let neighbor_cache = NeighborCache::new(&mut neighbor_cache_entries[..]);
     let mut ip_addrs = [IpCidr::new(ip_address, 24)];

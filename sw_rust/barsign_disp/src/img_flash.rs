@@ -9,7 +9,7 @@ pub struct Flash {
 }
 
 impl Flash {
-    pub fn new(spi: pac::SPIFLASH_MMAP) -> Self {
+    pub fn new(spi: pac::SpiflashMmap) -> Self {
         let spi = hal::SpiMem::new(spi);
         let memory = Flash25::init(spi.0, spi.1).unwrap();
         Self { memory }

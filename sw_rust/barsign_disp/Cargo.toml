@@ -2,7 +2,7 @@
 name = "barsign-disp"
 version = "0.0.1"
 authors = [ "David Sawatzke <d-git@sawatzke.dev>" ]
-edition = "2018"
+edition = "2021"
 
 [dependencies]
 litex-pac = { path = "../litex-pac", features = ["rt"]}

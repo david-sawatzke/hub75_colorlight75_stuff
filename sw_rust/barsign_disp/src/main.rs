@@ -216,11 +216,3 @@ fn main() -> ! {
         time += Duration::from_millis(1);
     }
 }
-
-// HACK HACK HACK
-// Workaround for https://github.com/rust-lang/rust/issues/92897
-// TODO remove when fixed
-#[no_mangle]
-pub fn __atomic_load_4(arg: *const usize, _ordering: usize) -> usize {
-    unsafe { *arg }
-}
